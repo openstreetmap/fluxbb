@@ -5,6 +5,7 @@ $lang_register = array(
 
 // Miscellaneous
 'No new regs'				=>	'This forum is not accepting new registrations.',
+'Register OSM account'		=>	'You need to register an <a href="https://www.openstreetmap.org/user/new">OSM account</a>. You can use your username and password to login here afterwards.',
 'Reg cancel redirect'		=>	'Registration cancelled. Redirecting …',
 'Forum rules'				=>	'Forum rules',
 'Rules legend'				=>	'You must agree to the following in order to register',

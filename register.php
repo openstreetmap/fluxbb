@@ -24,7 +24,7 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/register.php';
 require PUN_ROOT.'lang/'.$pun_user['language'].'/prof_reg.php';
 
 if ($pun_config['o_regs_allow'] == '0')
-	message($lang_register['No new regs']);
+	message($lang_register['Register OSM account']);
 
 
 // User pressed the cancel button
