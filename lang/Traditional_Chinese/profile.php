@@ -1,0 +1,141 @@
+<?php
+
+// Language definitions used in profile.php
+$lang_profile = array(
+
+// Navigation and sections
+'Profile menu'					=>	'個人資料',
+'Section essentials'			=>	'基本設定',
+'Section personal'				=>	'身份資訊',
+'Section messaging'				=>	'即時通訊',
+'Section personality'			=>	'個性設定',
+'Section display'				=>	'外觀顯示',
+'Section privacy'				=>	'隱私設定',
+'Section admin'					=>	'管理',
+
+// Miscellaneous
+'Username and pass legend'		=>	'輸入您的會員名稱和密碼',
+'Personal details legend'		=>	'輸入您的身份資訊',
+'Contact details legend'		=>	'輸入您的即時通訊息',
+'User activity'					=>	'會員活動',
+'Paginate info'					=>	'輸入數字以設定每頁顯示的主題和文章的數目。',
+
+// Password stuff
+'Pass key bad'					=>	'這組密碼啟用不正確或已過期。請重新申請一個密碼。如操作失敗請聯繫論壇管理員',
+'Pass updated'					=>	'您的密碼已更新。現在您可用新密碼登入。',
+'Pass updated redirect'			=>	'密碼已更新。重新導向中 …',
+'Wrong pass'					=>	'原密碼輸入錯誤。',
+'Change pass'					=>	'更改密碼',
+'Change pass legend'			=>	'輸入並確認您的新密碼',
+'Old pass'						=>	'原密碼',
+'New pass'						=>	'新密碼',
+'Confirm new pass'				=>	'重複新密碼',
+'Pass info'						=>	'密碼長度至少必需4個字元。並且字元區分大小寫。',
+
+// Email stuff
+'Email key bad'					=>	'這個電子信箱啟用密鑰不正確或已過期。請重新更改電子信箱。如操作失敗請聯繫論壇管理員',
+'Email updated'					=>	'您的電子信箱已更新。',
+'Activate email sent'			=>	'已發送郵件至您指定的電子信箱，說明如何啟用新的電子信箱。如未收到請聯繫論壇管理員',
+'Email legend'					=>	'輸入您的新電子信箱',
+'Email instructions'			=>	'一封包含啟用連結的郵件將會發送至您的新電子信箱。您必須點選這個郵件中的連結才能啟用您的新電子信箱。',
+'Change email'					=>	'更改電子信箱',
+'New email'						=>	'新電子信箱',
+
+// Avatar upload stuff
+'Avatars disabled'				=>	'管理員已停用了頭像功能。',
+'Too large ini'					=>	'指定檔案大小超出限制。伺服器不允許上傳。',
+'Partial upload'				=>	'指定檔案未能上傳完成。請重試。',
+'No tmp directory'				=>	'找不到上傳檔案時必須的PHP臨時目錄。',
+'No file'						=>	'請選取檔案後再上傳。',
+'Bad type'						=>	'不支援您試圖上傳檔案的格式。支援的檔案格式為gif, jpeg及png。',
+'Too wide or high'				=>	'您嘗試上傳的檔案高度和/或寬度超出允許的最大值',
+'Too large'						=>	'您嘗試上傳的檔案大小超出允許的最大值',
+'pixels'						=>	'像素',
+'bytes'							=>	'bytes',
+'Move failed'					=>	'伺服器無法儲存上傳的檔案。請聯繫論壇管理員',
+'Unknown failure'				=>	'未知錯誤。請重新嘗試。',
+'Avatar upload redirect'		=>	'頭像已上傳。重新導向中 …',
+'Avatar deleted redirect'		=>	'頭像已刪除。重新導向中 …',
+'Avatar desc'					=>	'頭像在您的文章裡會顯示在您的會員名稱下方。它的規格不能大於',
+'Upload avatar'					=>	'上傳頭像',
+'Upload avatar legend'			=>	'選定一個頭像檔案後上傳',
+'Delete avatar'					=>	'刪除會員頭像', // only for admins
+'File'							=>	'檔案',
+'Upload'						=>	'上傳', // submit button
+
+// Form validation stuff
+'Forbidden title'				=>	'您輸入的頭銜含有停用詞彙。請重新選擇頭銜名稱。',
+'Profile redirect'				=>	'個人資料已更新。重新導向中 …',
+
+// Profile display stuff
+'Users profile'					=>	'%s 的個人資料',
+'Username info'					=>	'會員名稱： %s',
+'Email info'					=>	'電子信箱： %s',
+'Posts info'					=>	'文章： %s',
+'Registered info'				=>	'註冊時間： %s',
+'Last post info'				=>	'上次發文： %s',
+'Last visit info'				=>	'上次登入： %s',
+'Show posts'					=>	'顯示所有文章',
+'Show topics'					=>	'顯示所有主題',
+'Show subscriptions'			=>	'顯示所有訂閱',
+'Realname'						=>	'真實姓名',
+'Location'						=>	'所在地',
+'Website'						=>	'個人網站',
+'Invalid website URL'					=>	'您輸入了一個無效網址。',
+'Jabber'						=>	'Jabber',
+'ICQ'							=>	'ICQ',
+'MSN'							=>	'MSN Messenger',
+'AOL IM'						=>	'AOL IM',
+'Yahoo'							=>	'Yahoo! Messenger',
+'Avatar'						=>	'頭像',
+'Signature'						=>	'簽名',
+'Sig max size'					=>	'長度限制： %s 字元 / 行數限制： %s',
+'Avatar legend'					=>	'設定您的頭像顯示選項',
+'Avatar info'					=>	'頭像是一幅顯示在您的文章中的小圖片。您可以點選下面的連結上傳一個頭像。',
+'Change avatar'					=>	'更改頭像',
+'Signature legend'				=>	'撰寫您的簽名',
+'Signature info'				=>	'簽名是一段附加在您的文章下的文字。您可以輸入任何您喜歡的內容。也許您想在這裡輸入您的座右銘或者您的星座。由您決定啦！如果論壇已啟用這功能，您就可以在簽名裡使用BBCode。在編輯簽名前，您應該查看下列功能是否啟用。',
+'Sig preview'					=>	'目前簽名預覽：',
+'No sig'						=>	'(暫無簽名)',
+'Signature quote/code/list/h'	=>	'簽名中不允許使用BBCodes的 quote, code, list, 及 heading(h) 標籤。',
+'Topics per page'				=>	'每頁主題',
+'Posts per page'				=>	'每頁文章',
+'Leave blank'					=>	'留空則使用論壇預設值。',
+'Subscription legend'			=>	'設定您的訂閱選項',
+'Notify full'					=>	'在郵件訂閱通知中包含新文章的純文字內容。',
+'Auto notify full'				=>	'自動訂閱所有您參與過的主題。',
+'Show smilies'					=>	'顯示表情圖。',
+'Show images'					=>	'顯示文章中的圖片。',
+'Show images sigs'				=>	'顯示簽名中的圖片。',
+'Show avatars'					=>	'顯示會員的頭像。',
+'Show sigs'						=>	'顯示會員的簽名。',
+'Style legend'					=>	'設定您的預設風格',
+'Styles'						=>	'風格',
+'Admin note'					=>	'管理員注釋',
+'Pagination legend'				=>	'輸入您的分頁選項',
+'Post display legend'			=>	'設定瀏覽文章選項',
+'Post display info'				=>	'如果網速緩慢，就停用這些選項，尤其是封鎖顯示文章和簽名中的圖片，將加快頁面的載入速度。',
+'Instructions'					=>	'送出更新個人資料後，將被重新導向回此頁。',
+
+// Administration stuff
+'Group membership legend'		=>	'選擇會員群組',
+'Save'							=>	'儲存',
+'Set mods legend'				=>	'設定版主權限',
+'Moderator in info'				=>	'選擇相應的論壇版面以允許這位會員行使版主權限。注意：此設定僅對版主有效。管理員是預設擁有所有版面的全部管理權限的。',
+'Update forums'					=>	'更新論壇設定',
+'Delete ban legend'				=>	'刪除 (administrators only) 或封鎖會員',
+'Delete user'					=>	'刪除會員',
+'Ban user'						=>	'封鎖會員',
+'Confirm delete legend'			=>	'重要：刪除會員前必讀',
+'Confirm delete user'			=>	'確認刪除會員',
+'Confirmation info'				=>	'請確認您要刪除這位會員', // the username will be appended to this string
+'Delete warning'				=>	'警告：刪除會員和/或文章的操作將無法恢復。如果您此時不刪除這位會員的文章，這些文章將只能由手動刪除。',
+'Delete posts'					=>	'刪除這位會員發表的所有主題和文章。',
+'Delete'						=>	'刪除', // submit button (confirm user delete)
+'User delete redirect'			=>	'會員已刪除。重新導向中 …',
+'Group membership redirect'		=>	'會員群組成員已儲存。重新導向中 …',
+'Update forums redirect'		=>	'版主權限已成功更新。重新導向中 …',
+'Ban redirect'					=>	'重新導向中 …',
+'No delete admin message'		=>	'管理員群組中的成員不能刪除。如要刪除這位會員，您必須先將其轉移到另一個會員群組中。'
+
+);
