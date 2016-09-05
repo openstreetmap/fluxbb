@@ -43,6 +43,13 @@ $lang_admin_forums = array(
 'Subject'					=>	'Subject',
 'Redirect label'			=>	'Redirect URL',
 'Redirect help'				=>	'Only available in empty forums',
+'force approve'		=>	'Manually approve all posts',
+'force approve help'		=>	'Force all posts, topics or topics and posts to be manually approved by a moderator before appearing on this forum. This setting is honoured for every user group except moderators for that forum and administrators. It cannot be overridden by specific forum settings.',
+
+'force approve topics'		=>	'Approve topics only',
+'force approve posts'		=>	'Approve posts only',
+'force approve both'		=>	'Approve topics and posts',
+'no force approve'		=>	'Approve nothing',
 'Group permissions subhead'	=>	'Edit group permissions for this forum',
 'Group permissions info'	=>	'In this form, you can set the forum specific permissions for the different user groups. If you haven\'t made any changes to this forum\'s group permissions, what you see below is the default based on settings in %s. Administrators always have full permissions and are thus excluded. Permission settings that differ from the default permissions for the user group are marked red. The "Read forum" permission checkbox will be disabled if the group in question lacks the "Read board" permission. For redirect forums, only the "Read forum" permission is editable.',
 'Read forum label'			=>	'Read forum',

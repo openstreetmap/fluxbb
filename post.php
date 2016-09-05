@@ -21,9 +21,9 @@ if ($tid < 1 && $fid < 1 || $tid > 0 && $fid > 0)
 
 // Fetch some info about the topic and/or the forum
 if ($tid)
-	$result = $db->query('SELECT f.id, f.forum_name, f.moderators, f.redirect_url, fp.post_replies, fp.post_topics, t.subject, t.closed, s.user_id AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') LEFT JOIN '.$db->prefix.'topic_subscriptions AS s ON (t.id=s.topic_id AND s.user_id='.$pun_user['id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$tid) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT f.id, f.forum_name, f.moderators, f.redirect_url, f.force_approve, fp.post_replies, fp.post_topics, t.subject, t.closed, s.user_id AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') LEFT JOIN '.$db->prefix.'topic_subscriptions AS s ON (t.id=s.topic_id AND s.user_id='.$pun_user['id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$tid) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 else
-	$result = $db->query('SELECT f.id, f.forum_name, f.moderators, f.redirect_url, fp.post_replies, fp.post_topics FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$fid) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT f.id, f.forum_name, f.moderators, f.redirect_url, f.force_approve, fp.post_replies, fp.post_topics FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$fid) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 
 if (!$db->num_rows($result))
 	message($lang_common['Bad request'], false, '404 Not Found');
@@ -157,6 +157,8 @@ if (isset($_POST['form_sent']))
 	$hide_smilies = isset($_POST['hide_smilies']) ? '1' : '0';
 	$subscribe = isset($_POST['subscribe']) ? '1' : '0';
 	$stick_topic = isset($_POST['stick_topic']) && $is_admmod ? '1' : '0';
+	$topic_approve = (!$is_admmod && ($cur_posting['force_approve'] == '1' || $cur_posting['force_approve'] == '3' || $pun_user['g_moderate_posts'] == '1')) ? '0' : '1';
+	$post_approve = (!$is_admmod && ($cur_posting['force_approve'] == '2' || $cur_posting['force_approve'] == '3' || $pun_user['g_moderate_posts'] == '1')) ? '0' : '1';
 
 	// Replace four-byte characters (MySQL cannot handle them)
 	$message = strip_bad_multibyte_chars($message);
@@ -178,7 +180,7 @@ if (isset($_POST['form_sent']))
 				$new_tid = $tid;
 
 				// Insert the new post
-				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_id, poster_ip, message, hide_smilies, posted, topic_id) VALUES(\''.$db->escape($username).'\', '.$pun_user['id'].', \''.$db->escape(get_remote_address()).'\', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$tid.')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_id, poster_ip, message, hide_smilies, posted, topic_id, approved) VALUES(\''.$db->escape($username).'\', '.$pun_user['id'].', \''.$db->escape(get_remote_address()).'\', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$tid.', \''.$post_approve.'\')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
 				$new_pid = $db->insert_id();
 
 				// To subscribe or not to subscribe, that ...
@@ -194,103 +196,122 @@ if (isset($_POST['form_sent']))
 			{
 				// It's a guest. Insert the new post
 				$email_sql = ($pun_config['p_force_guest_email'] == '1' || $email != '') ? '\''.$db->escape($email).'\'' : 'NULL';
-				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_ip, poster_email, message, hide_smilies, posted, topic_id) VALUES(\''.$db->escape($username).'\', \''.$db->escape(get_remote_address()).'\', '.$email_sql.', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$tid.')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_ip, poster_email, message, hide_smilies, posted, topic_id, approved) VALUES(\''.$db->escape($username).'\', \''.$db->escape(get_remote_address()).'\', '.$email_sql.', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$tid.', \''.$post_approve.'\')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
 				$new_pid = $db->insert_id();
 			}
 
-			// Update topic
-			$db->query('UPDATE '.$db->prefix.'topics SET num_replies=num_replies+1, last_post='.$now.', last_post_id='.$new_pid.', last_poster=\''.$db->escape($username).'\' WHERE id='.$tid) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
-
-			update_search_index('post', $new_pid, $message);
-
-			update_forum($cur_posting['id']);
-
-			// Should we send out notifications?
-			if ($pun_config['o_topic_subscriptions'] == '1')
+			if ($post_approve == '1')
 			{
-				// Get the post time for the previous post in this topic
-				$result = $db->query('SELECT posted FROM '.$db->prefix.'posts WHERE topic_id='.$tid.' ORDER BY id DESC LIMIT 1, 1') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
-				$previous_post_time = $db->result($result);
+				// Update topic
+				$db->query('UPDATE '.$db->prefix.'topics SET num_replies=num_replies+1, last_post='.$now.', last_post_id='.$new_pid.', last_poster=\''.$db->escape($username).'\' WHERE id='.$tid) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
 
-				// Get any subscribed users that should be notified (banned users are excluded)
-				$result = $db->query('SELECT u.id, u.email, u.notify_with_post, u.language FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'topic_subscriptions AS s ON u.id=s.user_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id='.$cur_posting['id'].' AND fp.group_id=u.group_id) LEFT JOIN '.$db->prefix.'online AS o ON u.id=o.user_id LEFT JOIN '.$db->prefix.'bans AS b ON u.username=b.username WHERE b.username IS NULL AND COALESCE(o.logged, u.last_visit)>'.$previous_post_time.' AND (fp.read_forum IS NULL OR fp.read_forum=1) AND s.topic_id='.$tid.' AND u.id!='.$pun_user['id']) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
-				if ($db->num_rows($result))
+				update_search_index('post', $new_pid, $message);
+
+				update_forum($cur_posting['id']);
+
+				// Should we send out notifications?
+				if ($pun_config['o_topic_subscriptions'] == '1')
 				{
-					require_once PUN_ROOT.'include/email.php';
+					// Get the post time for the previous post in this topic
+					$result = $db->query('SELECT posted FROM '.$db->prefix.'posts WHERE topic_id='.$tid.' ORDER BY id DESC LIMIT 1, 1') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+					$previous_post_time = $db->result($result);
 
-					$notification_emails = array();
-
-					if ($pun_config['o_censoring'] == '1')
-						$cleaned_message = bbcode2email($censored_message, -1);
-					else
-						$cleaned_message = bbcode2email($message, -1);
-
-					// Loop through subscribed users and send emails
-					while ($cur_subscriber = $db->fetch_assoc($result))
+					// Get any subscribed users that should be notified (banned users are excluded)
+					$result = $db->query('SELECT u.id, u.email, u.notify_with_post, u.language FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'topic_subscriptions AS s ON u.id=s.user_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id='.$cur_posting['id'].' AND fp.group_id=u.group_id) LEFT JOIN '.$db->prefix.'online AS o ON u.id=o.user_id LEFT JOIN '.$db->prefix.'bans AS b ON u.username=b.username WHERE b.username IS NULL AND COALESCE(o.logged, u.last_visit)>'.$previous_post_time.' AND (fp.read_forum IS NULL OR fp.read_forum=1) AND s.topic_id='.$tid.' AND u.id!='.$pun_user['id']) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+					if ($db->num_rows($result))
 					{
-						// Is the subscription email for $cur_subscriber['language'] cached or not?
-						if (!isset($notification_emails[$cur_subscriber['language']]))
+						require_once PUN_ROOT.'include/email.php';
+
+						$notification_emails = array();
+
+						if ($pun_config['o_censoring'] == '1')
+							$cleaned_message = bbcode2email($censored_message, -1);
+						else
+							$cleaned_message = bbcode2email($message, -1);
+
+						// Loop through subscribed users and send emails
+						while ($cur_subscriber = $db->fetch_assoc($result))
 						{
-							if (file_exists(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply.tpl'))
+							// Is the subscription email for $cur_subscriber['language'] cached or not?
+							if (!isset($notification_emails[$cur_subscriber['language']]))
 							{
-								// Load the "new reply" template
-								$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply.tpl'));
+								if (file_exists(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply.tpl'))
+								{
+									// Load the "new reply" template
+									$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply.tpl'));
 
-								// Load the "new reply full" template (with post included)
-								$mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply_full.tpl'));
+									// Load the "new reply full" template (with post included)
+									$mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_reply_full.tpl'));
 
-								// The first row contains the subject (it also starts with "Subject:")
-								$first_crlf = strpos($mail_tpl, "\n");
-								$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
-								$mail_message = trim(substr($mail_tpl, $first_crlf));
+									// The first row contains the subject (it also starts with "Subject:")
+									$first_crlf = strpos($mail_tpl, "\n");
+									$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
+									$mail_message = trim(substr($mail_tpl, $first_crlf));
 
-								$first_crlf = strpos($mail_tpl_full, "\n");
-								$mail_subject_full = trim(substr($mail_tpl_full, 8, $first_crlf-8));
-								$mail_message_full = trim(substr($mail_tpl_full, $first_crlf));
+									$first_crlf = strpos($mail_tpl_full, "\n");
+									$mail_subject_full = trim(substr($mail_tpl_full, 8, $first_crlf-8));
+									$mail_message_full = trim(substr($mail_tpl_full, $first_crlf));
 
-								$mail_subject = str_replace('<topic_subject>', $cur_posting['subject'], $mail_subject);
-								$mail_message = str_replace('<topic_subject>', $cur_posting['subject'], $mail_message);
-								$mail_message = str_replace('<replier>', $username, $mail_message);
-								$mail_message = str_replace('<post_url>', get_base_url().'/viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $mail_message);
-								$mail_message = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&tid='.$tid, $mail_message);
-								$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
+									$mail_subject = str_replace('<topic_subject>', $cur_posting['subject'], $mail_subject);
+									$mail_message = str_replace('<topic_subject>', $cur_posting['subject'], $mail_message);
+									$mail_message = str_replace('<replier>', $username, $mail_message);
+									$mail_message = str_replace('<post_url>', get_base_url().'/viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $mail_message);
+									$mail_message = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&tid='.$tid, $mail_message);
+									$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
 
-								$mail_subject_full = str_replace('<topic_subject>', $cur_posting['subject'], $mail_subject_full);
-								$mail_message_full = str_replace('<topic_subject>', $cur_posting['subject'], $mail_message_full);
-								$mail_message_full = str_replace('<replier>', $username, $mail_message_full);
-								$mail_message_full = str_replace('<message>', $cleaned_message, $mail_message_full);
-								$mail_message_full = str_replace('<post_url>', get_base_url().'/viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $mail_message_full);
-								$mail_message_full = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&tid='.$tid, $mail_message_full);
-								$mail_message_full = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message_full);
+									$mail_subject_full = str_replace('<topic_subject>', $cur_posting['subject'], $mail_subject_full);
+									$mail_message_full = str_replace('<topic_subject>', $cur_posting['subject'], $mail_message_full);
+									$mail_message_full = str_replace('<replier>', $username, $mail_message_full);
+									$mail_message_full = str_replace('<message>', $cleaned_message, $mail_message_full);
+									$mail_message_full = str_replace('<post_url>', get_base_url().'/viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $mail_message_full);
+									$mail_message_full = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&tid='.$tid, $mail_message_full);
+									$mail_message_full = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message_full);
 
-								$notification_emails[$cur_subscriber['language']][0] = $mail_subject;
-								$notification_emails[$cur_subscriber['language']][1] = $mail_message;
-								$notification_emails[$cur_subscriber['language']][2] = $mail_subject_full;
-								$notification_emails[$cur_subscriber['language']][3] = $mail_message_full;
+									$notification_emails[$cur_subscriber['language']][0] = $mail_subject;
+									$notification_emails[$cur_subscriber['language']][1] = $mail_message;
+									$notification_emails[$cur_subscriber['language']][2] = $mail_subject_full;
+									$notification_emails[$cur_subscriber['language']][3] = $mail_message_full;
 
-								$mail_subject = $mail_message = $mail_subject_full = $mail_message_full = null;
+									$mail_subject = $mail_message = $mail_subject_full = $mail_message_full = null;
+								}
+							}
+
+							// We have to double check here because the templates could be missing
+							if (isset($notification_emails[$cur_subscriber['language']]))
+							{
+								if ($cur_subscriber['notify_with_post'] == '0')
+									pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][0], $notification_emails[$cur_subscriber['language']][1]);
+								else
+									pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][2], $notification_emails[$cur_subscriber['language']][3]);
 							}
 						}
 
-						// We have to double check here because the templates could be missing
-						if (isset($notification_emails[$cur_subscriber['language']]))
-						{
-							if ($cur_subscriber['notify_with_post'] == '0')
-								pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][0], $notification_emails[$cur_subscriber['language']][1]);
-							else
-								pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][2], $notification_emails[$cur_subscriber['language']][3]);
-						}
+						unset($cleaned_message);
 					}
-
-					unset($cleaned_message);
 				}
+			}
+			else
+			{
+				require_once PUN_ROOT.'include/email.php';
+				// Load the "new post" template
+				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$pun_user['language'].'/mail_templates/new_post.tpl'));
+		
+				// The first row contains the subject
+				$first_crlf = strpos($mail_tpl, "\n");
+				$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
+				$mail_message = trim(substr($mail_tpl, $first_crlf));
+		
+				$mail_message = str_replace('<username>', $pun_user['username'], $mail_message);
+				$mail_message = str_replace('<topic_title>', $cur_posting['subject'], $mail_message);
+				$mail_message = str_replace('<post_url>', get_base_url().'/admin_posts.php', $mail_message);
+				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
 			}
 		}
 		// If it's a new topic
 		else if ($fid)
 		{
 			// Create the topic
-			$db->query('INSERT INTO '.$db->prefix.'topics (poster, subject, posted, last_post, last_poster, sticky, forum_id) VALUES(\''.$db->escape($username).'\', \''.$db->escape($subject).'\', '.$now.', '.$now.', \''.$db->escape($username).'\', '.$stick_topic.', '.$fid.')') or error('Unable to create topic', __FILE__, __LINE__, $db->error());
+			$db->query('INSERT INTO '.$db->prefix.'topics (poster, subject, posted, last_post, last_poster, sticky, forum_id, approved) VALUES(\''.$db->escape($username).'\', \''.$db->escape($subject).'\', '.$now.', '.$now.', \''.$db->escape($username).'\', '.$stick_topic.', '.$fid.', \''.$topic_approve.'\')') or error('Unable to create topic', __FILE__, __LINE__, $db->error());
 			$new_tid = $db->insert_id();
 
 			if (!$pun_user['is_guest'])
@@ -300,100 +321,119 @@ if (isset($_POST['form_sent']))
 					$db->query('INSERT INTO '.$db->prefix.'topic_subscriptions (user_id, topic_id) VALUES('.$pun_user['id'].' ,'.$new_tid.')') or error('Unable to add subscription', __FILE__, __LINE__, $db->error());
 
 				// Create the post ("topic post")
-				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_id, poster_ip, message, hide_smilies, posted, topic_id) VALUES(\''.$db->escape($username).'\', '.$pun_user['id'].', \''.$db->escape(get_remote_address()).'\', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$new_tid.')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_id, poster_ip, message, hide_smilies, posted, topic_id, approved) VALUES(\''.$db->escape($username).'\', '.$pun_user['id'].', \''.$db->escape(get_remote_address()).'\', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$new_tid.', \''.$topic_approve.'\')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
 			}
 			else
 			{
 				// Create the post ("topic post")
 				$email_sql = ($pun_config['p_force_guest_email'] == '1' || $email != '') ? '\''.$db->escape($email).'\'' : 'NULL';
-				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_ip, poster_email, message, hide_smilies, posted, topic_id) VALUES(\''.$db->escape($username).'\', \''.$db->escape(get_remote_address()).'\', '.$email_sql.', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$new_tid.')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'posts (poster, poster_ip, poster_email, message, hide_smilies, posted, topic_id, approved) VALUES(\''.$db->escape($username).'\', \''.$db->escape(get_remote_address()).'\', '.$email_sql.', \''.$db->escape($message).'\', '.$hide_smilies.', '.$now.', '.$new_tid.', \''.$topic_approve.'\')') or error('Unable to create post', __FILE__, __LINE__, $db->error());
 			}
 			$new_pid = $db->insert_id();
 
 			// Update the topic with last_post_id
 			$db->query('UPDATE '.$db->prefix.'topics SET last_post_id='.$new_pid.', first_post_id='.$new_pid.' WHERE id='.$new_tid) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
 
-			update_search_index('post', $new_pid, $message, $subject);
-
-			update_forum($fid);
-
-			// Should we send out notifications?
-			if ($pun_config['o_forum_subscriptions'] == '1')
+			if ($topic_approve)
 			{
-				// Get any subscribed users that should be notified (banned users are excluded)
-				$result = $db->query('SELECT u.id, u.email, u.notify_with_post, u.language FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'forum_subscriptions AS s ON u.id=s.user_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id='.$cur_posting['id'].' AND fp.group_id=u.group_id) LEFT JOIN '.$db->prefix.'bans AS b ON u.username=b.username WHERE b.username IS NULL AND (fp.read_forum IS NULL OR fp.read_forum=1) AND s.forum_id='.$cur_posting['id'].' AND u.id!='.$pun_user['id']) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
-				if ($db->num_rows($result))
+				update_search_index('post', $new_pid, $message, $subject);
+
+				update_forum($fid);
+
+				// Should we send out notifications?
+				if ($pun_config['o_forum_subscriptions'] == '1')
 				{
-					require_once PUN_ROOT.'include/email.php';
-
-					$notification_emails = array();
-
-					if ($pun_config['o_censoring'] == '1')
-						$cleaned_message = bbcode2email($censored_message, -1);
-					else
-						$cleaned_message = bbcode2email($message, -1);
-
-					// Loop through subscribed users and send emails
-					while ($cur_subscriber = $db->fetch_assoc($result))
+					// Get any subscribed users that should be notified (banned users are excluded)
+					$result = $db->query('SELECT u.id, u.email, u.notify_with_post, u.language FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'forum_subscriptions AS s ON u.id=s.user_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id='.$cur_posting['id'].' AND fp.group_id=u.group_id) LEFT JOIN '.$db->prefix.'bans AS b ON u.username=b.username WHERE b.username IS NULL AND (fp.read_forum IS NULL OR fp.read_forum=1) AND s.forum_id='.$cur_posting['id'].' AND u.id!='.$pun_user['id']) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+					if ($db->num_rows($result))
 					{
-						// Is the subscription email for $cur_subscriber['language'] cached or not?
-						if (!isset($notification_emails[$cur_subscriber['language']]))
+						require_once PUN_ROOT.'include/email.php';
+
+						$notification_emails = array();
+
+						if ($pun_config['o_censoring'] == '1')
+							$cleaned_message = bbcode2email($censored_message, -1);
+						else
+							$cleaned_message = bbcode2email($message, -1);
+
+						// Loop through subscribed users and send emails
+						while ($cur_subscriber = $db->fetch_assoc($result))
 						{
-							if (file_exists(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'))
+							// Is the subscription email for $cur_subscriber['language'] cached or not?
+							if (!isset($notification_emails[$cur_subscriber['language']]))
 							{
-								// Load the "new topic" template
-								$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'));
+								if (file_exists(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'))
+								{
+									// Load the "new topic" template
+									$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'));
 
-								// Load the "new topic full" template (with post included)
-								$mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic_full.tpl'));
+									// Load the "new topic full" template (with post included)
+									$mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic_full.tpl'));
 
-								// The first row contains the subject (it also starts with "Subject:")
-								$first_crlf = strpos($mail_tpl, "\n");
-								$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
-								$mail_message = trim(substr($mail_tpl, $first_crlf));
+									// The first row contains the subject (it also starts with "Subject:")
+									$first_crlf = strpos($mail_tpl, "\n");
+									$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
+									$mail_message = trim(substr($mail_tpl, $first_crlf));
 
-								$first_crlf = strpos($mail_tpl_full, "\n");
-								$mail_subject_full = trim(substr($mail_tpl_full, 8, $first_crlf-8));
-								$mail_message_full = trim(substr($mail_tpl_full, $first_crlf));
+									$first_crlf = strpos($mail_tpl_full, "\n");
+									$mail_subject_full = trim(substr($mail_tpl_full, 8, $first_crlf-8));
+									$mail_message_full = trim(substr($mail_tpl_full, $first_crlf));
 
-								$mail_subject = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_subject);
-								$mail_message = str_replace('<topic_subject>', $pun_config['o_censoring'] == '1' ? $censored_subject : $subject, $mail_message);
-								$mail_message = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_message);
-								$mail_message = str_replace('<poster>', $username, $mail_message);
-								$mail_message = str_replace('<topic_url>', get_base_url().'/viewtopic.php?id='.$new_tid, $mail_message);
-								$mail_message = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&fid='.$cur_posting['id'], $mail_message);
-								$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
+									$mail_subject = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_subject);
+									$mail_message = str_replace('<topic_subject>', $pun_config['o_censoring'] == '1' ? $censored_subject : $subject, $mail_message);
+									$mail_message = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_message);
+									$mail_message = str_replace('<poster>', $username, $mail_message);
+									$mail_message = str_replace('<topic_url>', get_base_url().'/viewtopic.php?id='.$new_tid, $mail_message);
+									$mail_message = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&fid='.$cur_posting['id'], $mail_message);
+									$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
 
-								$mail_subject_full = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_subject_full);
-								$mail_message_full = str_replace('<topic_subject>', $pun_config['o_censoring'] == '1' ? $censored_subject : $subject, $mail_message_full);
-								$mail_message_full = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_message_full);
-								$mail_message_full = str_replace('<poster>', $username, $mail_message_full);
-								$mail_message_full = str_replace('<message>', $cleaned_message, $mail_message_full);
-								$mail_message_full = str_replace('<topic_url>', get_base_url().'/viewtopic.php?id='.$new_tid, $mail_message_full);
-								$mail_message_full = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&fid='.$cur_posting['id'], $mail_message_full);
-								$mail_message_full = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message_full);
+									$mail_subject_full = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_subject_full);
+									$mail_message_full = str_replace('<topic_subject>', $pun_config['o_censoring'] == '1' ? $censored_subject : $subject, $mail_message_full);
+									$mail_message_full = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_message_full);
+									$mail_message_full = str_replace('<poster>', $username, $mail_message_full);
+									$mail_message_full = str_replace('<message>', $cleaned_message, $mail_message_full);
+									$mail_message_full = str_replace('<topic_url>', get_base_url().'/viewtopic.php?id='.$new_tid, $mail_message_full);
+									$mail_message_full = str_replace('<unsubscribe_url>', get_base_url().'/misc.php?action=unsubscribe&fid='.$cur_posting['id'], $mail_message_full);
+									$mail_message_full = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message_full);
 
-								$notification_emails[$cur_subscriber['language']][0] = $mail_subject;
-								$notification_emails[$cur_subscriber['language']][1] = $mail_message;
-								$notification_emails[$cur_subscriber['language']][2] = $mail_subject_full;
-								$notification_emails[$cur_subscriber['language']][3] = $mail_message_full;
+									$notification_emails[$cur_subscriber['language']][0] = $mail_subject;
+									$notification_emails[$cur_subscriber['language']][1] = $mail_message;
+									$notification_emails[$cur_subscriber['language']][2] = $mail_subject_full;
+									$notification_emails[$cur_subscriber['language']][3] = $mail_message_full;
 
-								$mail_subject = $mail_message = $mail_subject_full = $mail_message_full = null;
+									$mail_subject = $mail_message = $mail_subject_full = $mail_message_full = null;
+								}
+							}
+
+							// We have to double check here because the templates could be missing
+							if (isset($notification_emails[$cur_subscriber['language']]))
+							{
+								if ($cur_subscriber['notify_with_post'] == '0')
+									pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][0], $notification_emails[$cur_subscriber['language']][1]);
+								else
+									pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][2], $notification_emails[$cur_subscriber['language']][3]);
 							}
 						}
 
-						// We have to double check here because the templates could be missing
-						if (isset($notification_emails[$cur_subscriber['language']]))
-						{
-							if ($cur_subscriber['notify_with_post'] == '0')
-								pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][0], $notification_emails[$cur_subscriber['language']][1]);
-							else
-								pun_mail($cur_subscriber['email'], $notification_emails[$cur_subscriber['language']][2], $notification_emails[$cur_subscriber['language']][3]);
-						}
+						unset($cleaned_message);
 					}
-
-					unset($cleaned_message);
 				}
+			}
+			else
+			{
+				require_once PUN_ROOT.'include/email.php';
+				// Load the "new post" template
+				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$pun_user['language'].'/mail_templates/new_post_topic.tpl'));
+		
+				// The first row contains the subject
+				$first_crlf = strpos($mail_tpl, "\n");
+				$mail_subject = trim(substr($mail_tpl, 8, $first_crlf-8));
+				$mail_message = trim(substr($mail_tpl, $first_crlf));
+		
+				$mail_message = str_replace('<username>', $pun_user['username'], $mail_message);
+				$mail_message = str_replace('<forum_name>', $cur_posting['forum_name'], $mail_message);
+				$mail_message = str_replace('<post_url>', get_base_url().'/admin_posts.php', $mail_message);
+				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
 			}
 		}
 
@@ -419,15 +459,20 @@ if (isset($_POST['form_sent']))
 		// If the posting user is logged in, increment his/her post count
 		if (!$pun_user['is_guest'])
 		{
-			$db->query('UPDATE '.$db->prefix.'users SET num_posts=num_posts+1, last_post='.$now.' WHERE id='.$pun_user['id']) or error('Unable to update user', __FILE__, __LINE__, $db->error());
-
-			// Promote this user to a new group if enabled
-			if ($pun_user['g_promote_next_group'] != 0 && $pun_user['num_posts'] + 1 >= $pun_user['g_promote_min_posts'])
+			if ($fid && $topic_approve == '1' || $tid && $post_approve == '1')
 			{
-				$new_group_id = $pun_user['g_promote_next_group'];
-				$db->query('UPDATE '.$db->prefix.'users SET group_id='.$new_group_id.' WHERE id='.$pun_user['id']) or error('Unable to promote user to new group', __FILE__, __LINE__, $db->error());
-			}
+				$db->query('UPDATE '.$db->prefix.'users SET num_posts=num_posts+1, last_post='.$now.' WHERE id='.$pun_user['id']) or error('Unable to update user', __FILE__, __LINE__, $db->error());
 
+				// Promote this user to a new group if enabled
+				if ($pun_user['g_promote_next_group'] != 0 && $pun_user['num_posts'] + 1 >= $pun_user['g_promote_min_posts'])
+				{
+					$new_group_id = $pun_user['g_promote_next_group'];
+					$db->query('UPDATE '.$db->prefix.'users SET group_id='.$new_group_id.' WHERE id='.$pun_user['id']) or error('Unable to promote user to new group', __FILE__, __LINE__, $db->error());
+				}
+			}
+			else
+				$db->query('UPDATE '.$db->prefix.'users SET last_post='.$now.' WHERE id='.$pun_user['id']) or error('Unable to update user', __FILE__, __LINE__, $db->error());
+				
 			// Topic tracking stuff...
 			$tracked_topics = get_tracked_topics();
 			$tracked_topics['topics'][$new_tid] = time();
@@ -438,7 +483,12 @@ if (isset($_POST['form_sent']))
 			$db->query('UPDATE '.$db->prefix.'online SET last_post='.$now.' WHERE ident=\''.$db->escape(get_remote_address()).'\'' ) or error('Unable to update user', __FILE__, __LINE__, $db->error());
 		}
 
-		redirect('viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $lang_post['Post redirect']);
+		if ($fid && $topic_approve == '0')
+			redirect('viewforum.php?id='.$cur_posting['id'], $lang_post['Topic moderation redirect']);
+		else if ($tid && $post_approve == '0')
+			redirect('viewtopic.php?id='.$tid, $lang_post['Post moderation redirect']);
+		else
+			redirect('viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $lang_post['Post redirect']);
 	}
 }
 
