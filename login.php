@@ -12,6 +12,23 @@ if (isset($_GET['action']))
 define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
+// OpenStreetMap specific addition
+function URLopen($url)
+{
+        // Fake the browser type
+        ini_set('user_agent','MSIE 4\.0b2;');
+		$result = "";
+		try {
+			$dh = @fopen("$url",'r');
+			if ($dh) {
+				$result = fread($dh,8192);
+			}
+		} catch (Exception $e) {
+			$result = $e->getMessage();
+		}
+		//echo $result;
+        return $result;
+}
 
 // Load the login.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/login.php';
@@ -19,6 +36,7 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/login.php';
 $action = isset($_GET['action']) ? $_GET['action'] : null;
 $errors = array();
 
+/*
 if (isset($_POST['form_sent']) && $action == 'in')
 {
 	flux_hook('login_before_validation');
@@ -99,6 +117,115 @@ if (isset($_POST['form_sent']) && $action == 'in')
 
 		redirect(pun_htmlspecialchars($redirect_url), $lang_login['Login redirect']);
 	}
+}*/
+
+if (isset($_POST['form_sent']) && $action == 'in')
+{
+	$form_username = pun_trim($_POST['req_username']);
+	$form_password = pun_trim($_POST['req_password']);
+	$save_pass = isset($_POST['save_pass']);
+
+	$authorized = false;
+	$sha1_in_db = (strlen($cur_user['password']) == 40) ? true : false;
+	$sha1_available = (function_exists('sha1') || function_exists('mhash')) ? true : false;
+	
+	$form_password_hash = pun_hash($form_password); // Will result in a SHA-1 hash
+	
+	$authURL=sprintf("http://%s:%s@www.openstreetmap.org/api/0.6/user/details",urlencode($form_username),urlencode($form_password));
+	$result = URLopen($authURL);
+
+	if (strlen($result) > 0) {
+		$sc_pos = strpos($result, "display_name=");
+		if ($sc_pos > 0) {
+			if ($sc_pos > 0) {
+				$sc_pos += 14;
+				$sc_end = strpos($result, '"', $sc_pos);
+				$username =html_entity_decode(substr($result, $sc_pos, $sc_end - $sc_pos), ENT_COMPAT, "UTF-8");
+				
+				if (strlen($username) == 0)
+					message('A problem was encountered: The display name cannot be empty. Please setup your <a href="http://forum.openstreetmap.org/viewtopic.php?pid=1087">\'Display name\'</a> which you can find on the \'My Settings\' page on the OpenStreetMap main page.');
+			}
+			else
+				message('A problem was encountered: Could not lookup the Display name in the authentication response. Please try again');
+			
+			// Does the user exist already?
+			$username_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'username=\''.$db->escape($username).'\'' : 'username=\''.$db->escape($username).'\'';
+			
+			$result = $db->query('SELECT * FROM '.$db->prefix.'users WHERE '.$username_sql) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+			$cur_user = $db->fetch_assoc($result);
+
+			if (!$cur_user['id']) {
+				//Create the user
+				$intial_group_id = ($pun_config['o_regs_verify'] == '0') ? $pun_config['o_default_user_group'] : PUN_UNVERIFIED;
+				$email1 = "";
+				$email_setting = 1;
+				$timezone = 0;
+				$language = $pun_config['o_default_lang'];
+				$now = time();
+				
+				$sql = 'INSERT INTO '.$db->prefix.'users (username, group_id, password, email, email_setting, timezone, language, style, registered, registration_ip, last_visit) VALUES(\''.$db->escape($username).'\', '.$intial_group_id.', \''.$form_password_hash.'\', \''.$email1.'\', '.$email_setting.', '.$timezone.' , \''.$db->escape($language).'\', \''.$pun_config['o_default_style'].'\', '.$now.', \''.get_remote_address().'\', '.$now.')';
+
+				$db->query($sql) or error('Unable to create user', __FILE__, __LINE__, $db->error());
+				$cur_user['id'] = $db->insert_id();
+			}
+			else
+			{
+				// Login successful. Update the user.
+				if ($sha1_available)	// There's an MD5 hash in the database, but SHA1 hashing is available, so we update the DB
+					$db->query('UPDATE '.$db->prefix.'users SET password=\''.$form_password_hash.'\' WHERE id='.$cur_user['id']) or error('Unable to update user password', __FILE__, __LINE__, $db->error());
+			}
+			
+			// Update email address
+			if(filter_var($form_username, FILTER_VALIDATE_EMAIL) && $cur_user['id'] > 0) {
+				// valid address
+				$db->query('UPDATE '.$db->prefix.'users SET email=\''.$db->escape($form_username).'\' WHERE id='.$cur_user['id']);
+			}
+
+			$authorized = true;
+		}
+		else
+		{// remote auth failed.
+			if ($header['status'] == 'HTTP/1.0 500 Internal Server Error') {
+				message('A problem was encountered: The OpenStreetMap authentication API is currently not working, so unfortunately you cannot login. Please try again or come back later.');
+			}
+			else {
+				//message('A problem was encountered: The OpenStreetMap authentication API is currently not working, so unfortunately you cannot login. Please try again or come back later.');
+				print("<p>Authentication failed. The OpenStreetMap API returns: ".$header['body']."</p>");
+			}
+			$authorized = false;
+		
+		}
+	}
+	else
+	{
+		if ($header['status'] == 'HTTP/1.0 500 Internal Server Error') {
+			message('A problem was encountered: The OpenStreetMap authentication API is currently not working, so unfortunately you cannot login. Please try again or come back later.');
+		}
+		else {
+			//message('A problem was encountered: The OpenStreetMap authentication API is currently not working, so unfortunately you cannot login. Please try again or come back later.');
+			message("Authentication failed. Please check if login works on <a href='http://www.openstreetmap.org'>www.openstreetmap.org</a>. If you can't login there, then there's no point in trying here....");
+		}
+		$authorized = false;
+	}
+
+	if (!$authorized) {
+		message(  "test3");
+		message($lang_login['Wrong user/pass'].' <a href="login.php?action=forget">'.$lang_login['Forgotten pass'].'</a>');
+	}
+	// Update the status if this is the first time the user logged in
+	if ($cur_user['group_id'] == PUN_UNVERIFIED)
+		$db->query('UPDATE '.$db->prefix.'users SET group_id='.$pun_config['o_default_user_group'].' WHERE id='.$cur_user['id']) or error('Unable to update user status', __FILE__, __LINE__, $db->error());
+
+	// Remove this users guest entry from the online list
+	$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape(get_remote_address()).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
+
+	$expire = ($save_pass == '1') ? time() + 1209600 : time() + $pun_config['o_timeout_visit'];
+	pun_setcookie($cur_user['id'], $form_password_hash, $expire);
+
+	// Reset tracked topics
+	set_tracked_topics(null);
+
+	redirect(htmlspecialchars($_POST['redirect_url']), $lang_login['Login redirect']);
 }
 
 
@@ -310,15 +437,17 @@ if (!empty($errors))
 					<div class="infldset">
 						<input type="hidden" name="form_sent" value="1" />
 						<input type="hidden" name="redirect_url" value="<?php echo pun_htmlspecialchars($redirect_url) ?>" />
-						<label class="conl required"><strong><?php echo $lang_common['Username'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_username" value="<?php if (isset($_POST['req_username'])) echo pun_htmlspecialchars($_POST['req_username']); ?>" size="25" maxlength="25" tabindex="1" /><br /></label>
-						<label class="conl required"><strong><?php echo $lang_common['Password'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="password" name="req_password" size="25" tabindex="2" /><br /></label>
+						<label class="conl required"><strong><?php echo $lang_common['Username'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_username" value="<?php if (isset($_POST['req_username'])) echo pun_htmlspecialchars($_POST['req_username']); ?>" size="35" maxlength="50" tabindex="1" /><br /></label>
+						<label class="conl required"><strong><?php echo $lang_common['Password'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="password" name="req_password" size="35" tabindex="2" /><br /></label>
 
 						<div class="rbox clearb">
 							<label><input type="checkbox" name="save_pass" value="1"<?php if (isset($_POST['save_pass'])) echo ' checked="checked"'; ?> tabindex="3" /><?php echo $lang_login['Remember me'] ?><br /></label>
 						</div>
 
+                                                <!--
 						<p class="clearb"><?php echo $lang_login['Login info'] ?></p>
 						<p class="actions"><span><a href="register.php" tabindex="5"><?php echo $lang_login['Not registered'] ?></a></span> <span><a href="login.php?action=forget" tabindex="6"><?php echo $lang_login['Forgotten pass'] ?></a></span></p>
+                                                -->
 					</div>
 				</fieldset>
 			</div>
