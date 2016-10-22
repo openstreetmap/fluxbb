@@ -765,12 +765,12 @@ function delete_post($post_id, $topic_id)
 {
 	global $db;
 
-	$result = $db->query('SELECT id, poster, posted FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id.' ORDER BY id DESC LIMIT 2') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, poster, posted FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id.' AND approved=1 ORDER BY id DESC LIMIT 2') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
 	list($last_id, ,) = $db->fetch_row($result);
 	list($second_last_id, $second_poster, $second_posted) = $db->fetch_row($result);
 
 	// Delete the post
-	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id) or error('Unable to delete post', __FILE__, __LINE__, $db->error());
+	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id.' AND approved=1') or error('Unable to delete post', __FILE__, __LINE__, $db->error());
 
 	strip_search_index($post_id);
 

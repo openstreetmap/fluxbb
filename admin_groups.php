@@ -182,6 +182,14 @@ foreach ($groups as $cur_group)
 									</td>
 								</tr>
 								<tr>
+									<th scope="row"><?php echo $lang_admin_groups['Post moderation label'] ?></th>
+									<td>
+										<label class="conl"><input type="radio" name="post_moderate_posts" value="1"<?php if ($group['g_moderate_posts'] == '1') echo ' checked="checked"' ?> tabindex="19" />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong></label>
+										<label class="conl"><input type="radio" name="post_moderate_posts" value="0"<?php if ($group['g_moderate_posts'] == '0') echo ' checked="checked"' ?> tabindex="20" />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong></label>
+										<span class="clearb"><?php echo $lang_admin_groups['Post moderation help'] ?></span>
+									</td>
+								</tr>
+								<tr>
 									<th scope="row"><?php echo $lang_admin_groups['Post topics label'] ?></th>
 									<td>
 										<label class="conl"><input type="radio" name="post_topics" value="1"<?php if ($group['g_post_topics'] == '1') echo ' checked="checked"' ?> tabindex="23" />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong></label>
@@ -327,6 +335,7 @@ else if (isset($_POST['add_edit_group']))
 	$read_board = isset($_POST['read_board']) ? intval($_POST['read_board']) : '1';
 	$view_users = (isset($_POST['view_users']) && $_POST['view_users'] == '1') || $is_admin_group ? '1' : '0';
 	$post_replies = isset($_POST['post_replies']) ? intval($_POST['post_replies']) : '1';
+	$moderate_posts = isset($_POST['post_moderate_posts']) ? intval($_POST['post_moderate_posts']) : '0';
 	$post_topics = isset($_POST['post_topics']) ? intval($_POST['post_topics']) : '1';
 	$edit_posts = isset($_POST['edit_posts']) ? intval($_POST['edit_posts']) : ($is_admin_group) ? '1' : '0';
 	$delete_posts = isset($_POST['delete_posts']) ? intval($_POST['delete_posts']) : ($is_admin_group) ? '1' : '0';
@@ -352,7 +361,7 @@ else if (isset($_POST['add_edit_group']))
 		if ($db->num_rows($result))
 			message(sprintf($lang_admin_groups['Title already exists message'], pun_htmlspecialchars($title)));
 
-		$db->query('INSERT INTO '.$db->prefix.'groups (g_title, g_user_title, g_promote_min_posts, g_promote_next_group, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_mod_promote_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_post_links, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood, g_report_flood) VALUES(\''.$db->escape($title).'\', '.$user_title.', '.$promote_min_posts.', '.$promote_next_group.', '.$moderator.', '.$mod_edit_users.', '.$mod_rename_users.', '.$mod_change_passwords.', '.$mod_ban_users.', '.$mod_promote_users.', '.$read_board.', '.$view_users.', '.$post_replies.', '.$post_topics.', '.$edit_posts.', '.$delete_posts.', '.$delete_topics.', '.$post_links.', '.$set_title.', '.$search.', '.$search_users.', '.$send_email.', '.$post_flood.', '.$search_flood.', '.$email_flood.', '.$report_flood.')') or error('Unable to add group', __FILE__, __LINE__, $db->error());
+		$db->query('INSERT INTO '.$db->prefix.'groups (g_title, g_user_title, g_promote_min_posts, g_promote_next_group, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_mod_promote_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_post_links, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood, g_report_flood, g_moderate_posts) VALUES(\''.$db->escape($title).'\', '.$user_title.', '.$promote_min_posts.', '.$promote_next_group.', '.$moderator.', '.$mod_edit_users.', '.$mod_rename_users.', '.$mod_change_passwords.', '.$mod_ban_users.', '.$mod_promote_users.', '.$read_board.', '.$view_users.', '.$post_replies.', '.$post_topics.', '.$edit_posts.', '.$delete_posts.', '.$delete_topics.', '.$post_links.', '.$set_title.', '.$search.', '.$search_users.', '.$send_email.', '.$post_flood.', '.$search_flood.', '.$email_flood.', '.$report_flood.', '.$moderate_posts.')') or error('Unable to add group', __FILE__, __LINE__, $db->error());
 		$new_group_id = $db->insert_id();
 
 		// Now lets copy the forum specific permissions from the group which this group is based on

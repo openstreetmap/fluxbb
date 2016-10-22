@@ -161,6 +161,7 @@ else if (isset($_GET['edit_forum']))
 		$cat_id = intval($_POST['cat_id']);
 		$sort_by = intval($_POST['sort_by']);
 		$redirect_url = isset($_POST['redirect_url']) ? pun_trim($_POST['redirect_url']) : null;
+		$force_approve = isset($_POST['moderator_approve']) ? intval($_POST['moderator_approve']) : '0';
 
 		if ($forum_name == '')
 			message($lang_admin_forums['Must enter name message']);
@@ -171,7 +172,7 @@ else if (isset($_GET['edit_forum']))
 		$forum_desc = ($forum_desc != '') ? '\''.$db->escape($forum_desc).'\'' : 'NULL';
 		$redirect_url = ($redirect_url != '') ? '\''.$db->escape($redirect_url).'\'' : 'NULL';
 
-		$db->query('UPDATE '.$db->prefix.'forums SET forum_name=\''.$db->escape($forum_name).'\', forum_desc='.$forum_desc.', redirect_url='.$redirect_url.', sort_by='.$sort_by.', cat_id='.$cat_id.' WHERE id='.$forum_id) or error('Unable to update forum', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'forums SET forum_name=\''.$db->escape($forum_name).'\', forum_desc='.$forum_desc.', redirect_url='.$redirect_url.', sort_by='.$sort_by.', cat_id='.$cat_id.', force_approve = '.$force_approve.' WHERE id='.$forum_id) or error('Unable to update forum', __FILE__, __LINE__, $db->error());
 
 		// Now let's deal with the permissions
 		if (isset($_POST['read_forum_old']))
@@ -224,7 +225,7 @@ else if (isset($_GET['edit_forum']))
 	}
 
 	// Fetch forum info
-	$result = $db->query('SELECT id, forum_name, forum_desc, redirect_url, num_topics, sort_by, cat_id FROM '.$db->prefix.'forums WHERE id='.$forum_id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, forum_name, forum_desc, redirect_url, num_topics, sort_by, cat_id, force_approve FROM '.$db->prefix.'forums WHERE id='.$forum_id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
 		message($lang_common['Bad request'], false, '404 Not Found');
 
@@ -285,6 +286,19 @@ else if (isset($_GET['edit_forum']))
 								<tr>
 									<th scope="row"><?php echo $lang_admin_forums['Redirect label'] ?></th>
 									<td><?php echo ($cur_forum['num_topics']) ? $lang_admin_forums['Redirect help'] : '<input type="text" name="redirect_url" size="45" maxlength="100" value="'.pun_htmlspecialchars($cur_forum['redirect_url']).'" tabindex="5" />'; ?></td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_forums['force approve'] ?></th>
+									<td>
+										<select name="moderator_approve">
+											<option value="0"<?php if ($cur_forum['force_approve'] == '0') echo ' selected="selected"'; ?>><?php echo $lang_admin_forums['no force approve']; ?></option>
+											<option value="1"<?php if ($cur_forum['force_approve'] == '1') echo ' selected="selected"'; ?>><?php echo $lang_admin_forums['force approve topics']; ?></option>
+											<option value="2"<?php if ($cur_forum['force_approve'] == '2') echo ' selected="selected"'; ?>><?php echo $lang_admin_forums['force approve posts']; ?></option>
+											<option value="3"<?php if ($cur_forum['force_approve'] == '3') echo ' selected="selected"'; ?>><?php echo $lang_admin_forums['force approve both']; ?></option>
+										</select>
+										<span class="clearb"><?php echo $lang_admin_forums['force approve help']; ?></span>
+
+									</td>
 								</tr>
 							</table>
 						</div>
