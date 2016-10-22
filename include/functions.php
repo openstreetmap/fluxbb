@@ -41,7 +41,8 @@ function check_cookie(&$pun_user)
 	if (isset($cookie) && $cookie['user_id'] > 1 && $cookie['expiration_time'] > $now)
 	{
 		// If the cookie has been tampered with
-		if (forum_hmac($cookie['user_id'].'|'.$cookie['expiration_time'], $cookie_seed.'_cookie_hash') != $cookie['cookie_hash'])
+		$is_authorized = pun_hash_equals(forum_hmac($cookie['user_id'].'|'.$cookie['expiration_time'], $cookie_seed.'_cookie_hash'), $cookie['cookie_hash']);
+		if (!$is_authorized)
 		{
 			$expire = $now + 31536000; // The cookie expires after a year
 			pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
@@ -55,7 +56,8 @@ function check_cookie(&$pun_user)
 		$pun_user = $db->fetch_assoc($result);
 
 		// If user authorisation failed
-		if (!isset($pun_user['id']) || forum_hmac($pun_user['password'], $cookie_seed.'_password_hash') !== $cookie['password_hash'])
+		$is_authorized = pun_hash_equals(forum_hmac($pun_user['password'], $cookie_seed.'_password_hash'), $cookie['password_hash']);
+		if (!isset($pun_user['id']) || !$is_authorized)
 		{
 			$expire = $now + 31536000; // The cookie expires after a year
 			pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
@@ -161,9 +163,12 @@ function authenticate_user($user, $password, $password_is_hash = false)
 	$result = $db->query('SELECT u.*, g.*, o.logged, o.idle FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON o.user_id=u.id WHERE '.(is_int($user) ? 'u.id='.intval($user) : 'u.username=\''.$db->escape($user).'\'')) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 	$pun_user = $db->fetch_assoc($result);
 
+	$is_password_authorized = pun_hash_equals($password, $pun_user['password']);
+	$is_hash_authorized = pun_hash_equals(pun_hash($password), $pun_user['password']);
+
 	if (!isset($pun_user['id']) ||
-		($password_is_hash && $password != $pun_user['password']) ||
-		(!$password_is_hash && pun_hash($password) != $pun_user['password']))
+		($password_is_hash && !$is_password_authorized ||
+		(!$password_is_hash && !$is_hash_authorized)))
 		set_default_user();
 	else
 		$pun_user['is_guest'] = false;
@@ -765,12 +770,12 @@ function delete_post($post_id, $topic_id)
 	list($second_last_id, $second_poster, $second_posted) = $db->fetch_row($result);
 
 	// Delete the post
-	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id) or error('Unable to delete post', __FILE__, __LINE__, $db->error());
+	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id.' AND approved=1') or error('Unable to delete post', __FILE__, __LINE__, $db->error());
 
 	strip_search_index($post_id);
 
 	// Count number of replies in the topic
-	$result = $db->query('SELECT COUNT(id) FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id.' AND approved=1') or error('Unable to fetch post count for topic', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT COUNT(id) FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or error('Unable to fetch post count for topic', __FILE__, __LINE__, $db->error());
 	$num_replies = $db->result($result, 0) - 1;
 
 	// If the message we deleted is the most recent in the topic (at the end of the topic)
@@ -853,12 +858,12 @@ function get_title($user)
 			$ban_list[] = utf8_strtolower($cur_ban['username']);
 	}
 
-	// If the user has a custom title
-	if ($user['title'] != '')
-		$user_title = pun_htmlspecialchars($user['title']);
 	// If the user is banned
-	else if (in_array(utf8_strtolower($user['username']), $ban_list))
+	if (in_array(utf8_strtolower($user['username']), $ban_list))
 		$user_title = $lang_common['Banned'];
+	// If the user has a custom title
+	else if ($user['title'] != '')
+		$user_title = pun_htmlspecialchars($user['title']);
 	// If the user group has a default user title
 	else if ($user['g_user_title'] != '')
 		$user_title = pun_htmlspecialchars($user['g_user_title']);
@@ -1138,6 +1143,58 @@ function random_pass($len)
 function pun_hash($str)
 {
 	return sha1($str);
+}
+
+
+//
+// Compare two strings in constant time
+// Inspired by WordPress
+//
+function pun_hash_equals($a, $b)
+{
+	if (function_exists('hash_equals'))
+		return hash_equals((string) $a, (string) $b);
+
+	$a_length = strlen($a);
+
+	if ($a_length !== strlen($b))
+		return false;
+
+	$result = 0;
+
+	// Do not attempt to "optimize" this.
+	for ($i = 0; $i < $a_length; $i++)
+		$result |= ord($a[$i]) ^ ord($b[$i]);
+
+	return $result === 0;
+}
+
+
+//
+// Compute a random hash used against CSRF attacks
+//
+function pun_csrf_token()
+{
+	global $pun_user;
+	static $token;
+
+	if (!isset($token))
+		$token = pun_hash($pun_user['id'].$pun_user['password'].pun_hash(get_remote_address()));
+
+	return $token;
+}
+
+//
+// Check if the CSRF hash is correct
+//
+function check_csrf($token)
+{
+	global $lang_common;
+
+	$is_hash_authorized = pun_hash_equals($token, pun_csrf_token());
+
+	if (!isset($token) || !$is_hash_authorized)
+		message($lang_common['Bad csrf hash'], false, '404 Not Found');
 }
 
 
@@ -1575,6 +1632,8 @@ H2 {MARGIN: 0; COLOR: #FFFFFF; BACKGROUND-COLOR: #B84623; FONT-SIZE: 1.1em; PADD
 
 	if (defined('PUN_DEBUG') && !is_null($file) && !is_null($line))
 	{
+		$file = str_replace(realpath(PUN_ROOT), '', $file);
+
 		echo "\t\t".'<strong>File:</strong> '.$file.'<br />'."\n\t\t".'<strong>Line:</strong> '.$line.'<br /><br />'."\n\t\t".'<strong>FluxBB reported</strong>: '.$message."\n";
 
 		if ($db_error)
@@ -1797,33 +1856,6 @@ function generate_stopwords_cache_id()
 
 
 //
-// Fetch a list of available admin plugins
-//
-function forum_list_plugins($is_admin)
-{
-	$plugins = array();
-
-	$d = dir(PUN_ROOT.'plugins');
-	while (($entry = $d->read()) !== false)
-	{
-		if ($entry{0} == '.')
-			continue;
-
-		$prefix = substr($entry, 0, strpos($entry, '_'));
-		$suffix = substr($entry, strlen($entry) - 4);
-
-		if ($suffix == '.php' && ((!$is_admin && $prefix == 'AMP') || ($is_admin && ($prefix == 'AP' || $prefix == 'AMP'))))
-			$plugins[$entry] = substr($entry, strpos($entry, '_') + 1, -4);
-	}
-	$d->close();
-
-	natcasesort($plugins);
-
-	return $plugins;
-}
-
-
-//
 // Split text into chunks ($inside contains all text inside $start and $end, and $outside contains all text outside)
 //
 function split_text($text, $start, $end, $retab = true)
@@ -2023,7 +2055,7 @@ function url_valid($url)
 //
 function ucp_preg_replace($pattern, $replace, $subject, $callback = false)
 {
-	if($callback) 
+	if($callback)
 		$replaced = preg_replace_callback($pattern, create_function('$matches', 'return '.$replace.';'), $subject);
 	else
 		$replaced = preg_replace($pattern, $replace, $subject);
