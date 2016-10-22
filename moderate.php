@@ -36,7 +36,7 @@ if (isset($_GET['get_host']))
 	// Load the misc.php language file
 	require PUN_ROOT.'lang/'.$pun_user['language'].'/misc.php';
 
-	message(sprintf($lang_misc['Host info 1'], $ip).'<br />'.sprintf($lang_misc['Host info 2'], @gethostbyaddr($ip)).'<br /><br /><a href="admin_users.php?show_users='.$ip.'">'.$lang_misc['Show more users'].'</a>');
+	message(sprintf($lang_misc['Host info 1'], $ip).'<br />'.sprintf($lang_misc['Host info 2'], pun_htmlspecialchars(@gethostbyaddr($ip))).'<br /><br /><a href="admin_users.php?show_users='.$ip.'">'.$lang_misc['Show more users'].'</a>');
 }
 
 
@@ -754,6 +754,8 @@ else if (isset($_REQUEST['open']) || isset($_REQUEST['close']))
 	{
 		confirm_referrer('viewtopic.php');
 
+		check_csrf($_GET['csrf_token']);
+
 		$topic_id = ($action) ? intval($_GET['close']) : intval($_GET['open']);
 		if ($topic_id < 1)
 			message($lang_common['Bad request'], false, '404 Not Found');
@@ -771,6 +773,8 @@ else if (isset($_GET['stick']))
 {
 	confirm_referrer('viewtopic.php');
 
+	check_csrf($_GET['csrf_token']);
+
 	$stick = intval($_GET['stick']);
 	if ($stick < 1)
 		message($lang_common['Bad request'], false, '404 Not Found');
@@ -785,6 +789,8 @@ else if (isset($_GET['stick']))
 else if (isset($_GET['unstick']))
 {
 	confirm_referrer('viewtopic.php');
+
+	check_csrf($_GET['csrf_token']);
 
 	$unstick = intval($_GET['unstick']);
 	if ($unstick < 1)

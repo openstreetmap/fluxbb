@@ -19,8 +19,15 @@ header('Pragma: no-cache'); // For HTTP/1.0 compatibility
 // Send the Content-type header in case the web server is setup to send something else
 header('Content-type: text/html; charset=utf-8');
 
-// Prevent site from being embedded in a frame
-header('X-Frame-Options: deny');
+// Prevent site from being embedded in a frame unless FORUM_FRAME_OPTIONS is set
+// to a valid X-Frame-Options header value or false
+if (defined('FORUM_FRAME_OPTIONS'))
+{
+	if (preg_match('/^(?:allow-from|deny|sameorigin)/i', FORUM_FRAME_OPTIONS))
+		header('X-Frame-Options: '.FORUM_FRAME_OPTIONS);
+}
+else
+	header('X-Frame-Options: deny');
 
 // Load the template
 if (defined('PUN_ADMIN_CONSOLE'))
@@ -166,7 +173,7 @@ if (isset($focus_element))
 
 
 // START SUBST - <pun_page>
-$tpl_main = str_replace('<pun_page>', htmlspecialchars(basename($_SERVER['PHP_SELF'], '.php')), $tpl_main);
+$tpl_main = str_replace('<pun_page>', htmlspecialchars(basename($_SERVER['SCRIPT_NAME'], '.php')), $tpl_main);
 // END SUBST - <pun_page>
 
 
@@ -207,7 +214,7 @@ else
 	if ($pun_user['is_admmod'])
 		$links[] = '<li id="navadmin"'.((PUN_ACTIVE_PAGE == 'admin') ? ' class="isactive"' : '').'><a href="admin_index.php">'.$lang_common['Admin'].'</a></li>';
 
-	$links[] = '<li id="navlogout"><a href="login.php?action=out&amp;id='.$pun_user['id'].'&amp;csrf_token='.pun_hash($pun_user['id'].pun_hash(get_remote_address())).'">'.$lang_common['Logout'].'</a></li>';
+	$links[] = '<li id="navlogout"><a href="login.php?action=out&amp;id='.$pun_user['id'].'&amp;csrf_token='.pun_csrf_token().'">'.$lang_common['Logout'].'</a></li>';
 }
 
 // Are there any additional navlinks we should insert into the array before imploding it?
@@ -246,10 +253,6 @@ else
 			if ($db->result($result_header))
 				$page_statusinfo[] = '<li class="reportlink"><span><strong><a href="admin_reports.php">'.$lang_common['New reports'].'</a></strong></span></li>';
 		}
-
-		$result_header = $db->query('SELECT 1 FROM '.$db->prefix.'posts WHERE approved=0') or error('Unable to fetch unapproved posts info', __FILE__, __LINE__, $db->error());
-		if ($db->result($result_header))
-			$page_statusinfo[] = '<li class="reportlink"><span><strong><a href="admin_posts.php">'.$lang_common['New unapproved posts'].'</a></strong></span></li>';
 
 		if ($pun_config['o_maintenance'] == '1')
 			$page_statusinfo[] = '<li class="maintenancelink"><span><strong><a href="admin_options.php#maintenance">'.$lang_common['Maintenance mode enabled'].'</a></strong></span></li>';

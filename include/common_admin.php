@@ -22,6 +22,34 @@ else
 require PUN_ROOT.'lang/'.$admin_language.'/admin_common.php';
 
 //
+// Fetch a list of available admin plugins
+//
+function forum_list_plugins($is_admin)
+{
+	$plugins = array();
+
+	$d = dir(PUN_ROOT.'plugins');
+	if (!$d) return $plugins; 
+
+	while (($entry = $d->read()) !== false)
+	{
+		if (!is_dir(PUN_ROOT.'plugins/'.$entry) && preg_match('%^AM?P_(\w+)\.php$%i', $entry))
+		{
+			$prefix = substr($entry, 0, strpos($entry, '_'));
+
+			if ($prefix == 'AMP' || ($is_admin && $prefix == 'AP'))
+				$plugins[$entry] = substr($entry, strlen($prefix) + 1, -4);
+		}
+	}
+	$d->close();
+
+	natcasesort($plugins);
+
+	return $plugins;
+}
+
+
+//
 // Display the admin navigation menu
 //
 function generate_admin_menu($page = '')
@@ -40,7 +68,7 @@ function generate_admin_menu($page = '')
 					<li<?php if ($page == 'index') echo ' class="isactive"'; ?>><a href="admin_index.php"><?php echo $lang_admin_common['Index'] ?></a></li>
 					<li<?php if ($page == 'users') echo ' class="isactive"'; ?>><a href="admin_users.php"><?php echo $lang_admin_common['Users'] ?></a></li>
 <?php if ($is_admin || $pun_user['g_mod_ban_users'] == '1'): ?>					<li<?php if ($page == 'bans') echo ' class="isactive"'; ?>><a href="admin_bans.php"><?php echo $lang_admin_common['Bans'] ?></a></li>
-<?php endif; if ($is_admin || $pun_config['o_report_method'] == '0' || $pun_config['o_report_method'] == '2'): ?>					<li<?php if ($page == 'reports') echo ' class="isactive"'; ?>><a href="admin_reports.php"><?php echo $lang_admin_common['Reports'] ?></a></li><li<?php if ($page == 'posts') echo ' class="isactive"'; ?>><a href="admin_posts.php"><?php echo $lang_admin_common['Posts'] ?></a></li>
+<?php endif; if ($is_admin || $pun_config['o_report_method'] == '0' || $pun_config['o_report_method'] == '2'): ?>					<li<?php if ($page == 'reports') echo ' class="isactive"'; ?>><a href="admin_reports.php"><?php echo $lang_admin_common['Reports'] ?></a></li>
 <?php endif; ?>				</ul>
 			</div>
 		</div>

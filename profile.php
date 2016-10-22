@@ -449,6 +449,8 @@ else if ($action == 'delete_avatar')
 
 	confirm_referrer('profile.php');
 
+	check_csrf($_GET['csrf_token']);
+
 	delete_avatar($id);
 
 	redirect('profile.php?section=personality&amp;id='.$id, $lang_profile['Avatar deleted redirect']);
@@ -753,6 +755,8 @@ else if (isset($_POST['form_sent']))
 				if (!in_array($form['language'], $languages))
 					message($lang_common['Bad request'], false, '404 Not Found');
 			}
+			else
+				$form['language'] = $pun_config['o_default_lang'];
 
 			if ($pun_user['is_admmod'])
 			{
@@ -900,11 +904,6 @@ else if (isset($_POST['form_sent']))
 			$form = array(
 				'disp_topics'		=> pun_trim($_POST['form']['disp_topics']),
 				'disp_posts'		=> pun_trim($_POST['form']['disp_posts']),
-				'show_smilies'		=> isset($_POST['form']['show_smilies']) ? '1' : '0',
-				'show_img'			=> isset($_POST['form']['show_img']) ? '1' : '0',
-				'show_img_sig'		=> isset($_POST['form']['show_img_sig']) ? '1' : '0',
-				'show_avatars'		=> isset($_POST['form']['show_avatars']) ? '1' : '0',
-				'show_sig'			=> isset($_POST['form']['show_sig']) ? '1' : '0',
 			);
 
 			if ($form['disp_topics'] != '')
@@ -924,6 +923,21 @@ else if (isset($_POST['form_sent']))
 				else if ($form['disp_posts'] > 75)
 					$form['disp_posts'] = 75;
 			}
+
+			if ($pun_config['o_smilies'] == '1' || $pun_config['o_smilies_sig'] == '1')
+				$form['show_smilies'] = isset($_POST['form']['show_smilies']) ? '1' : '0';
+
+			if ($pun_config['p_message_bbcode'] == '1' && $pun_config['p_message_img_tag'] == '1')
+				$form['show_img'] = isset($_POST['form']['show_img']) ? '1' : '0';
+
+			if ($pun_config['o_signatures'] == '1' && $pun_config['p_sig_bbcode'] == '1' && $pun_config['p_sig_img_tag'] == '1')
+				$form['show_img_sig'] = isset($_POST['form']['show_img_sig']) ? '1' : '0';
+
+			if ($pun_config['o_avatars'] == '1')
+				$form['show_avatars'] = isset($_POST['form']['show_avatars']) ? '1' : '0';
+
+			if ($pun_config['o_signatures'] == '1')
+				$form['show_sig'] = isset($_POST['form']['show_sig']) ? '1' : '0';
 
 			// Make sure we got a valid style string
 			if (isset($_POST['form']['style']))
@@ -1531,7 +1545,7 @@ else
 
 		$user_avatar = generate_avatar_markup($id);
 		if ($user_avatar)
-			$avatar_field .= ' <span><a href="profile.php?action=delete_avatar&amp;id='.$id.'">'.$lang_profile['Delete avatar'].'</a></span>';
+			$avatar_field .= ' <span><a href="profile.php?action=delete_avatar&amp;id='.$id.'&amp;csrf_token='.pun_csrf_token().'">'.$lang_profile['Delete avatar'].'</a></span>';
 		else
 			$avatar_field = '<span><a href="profile.php?action=upload_avatar&amp;id='.$id.'">'.$lang_profile['Upload avatar'].'</a></span>';
 

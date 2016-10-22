@@ -217,10 +217,6 @@ function pun_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name 
 {
 	global $pun_config, $lang_common;
 
-	// Give up if there is no target address
-	if ($to == '')
-		return;
-
 	// Use \r\n for SMTP servers, the system's line ending for local mailers
 	$smtp = $pun_config['o_smtp_host'] != '';
 	$EOL = $smtp ? "\r\n" : FORUM_EOL;
