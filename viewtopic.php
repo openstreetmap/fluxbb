@@ -275,13 +275,11 @@ while ($cur_post = $db->fetch_assoc($result))
 
 			if ($pun_config['o_show_post_count'] == '1' || $pun_user['is_admmod'])
 				$user_info[] = '<dd><span>'.$lang_topic['Posts'].' '.forum_number_format($cur_post['num_posts']).'</span></dd>';
+                        
+			// link sendemail to osm.org sendmessage (modification because of special OSM login)
+                        $email_field = '<a href="https://www.openstreetmap.org/message/new/' . $user['username'] . '" target="_blank">' . $lang_common['Email'] . '</a>';
 
-			// Now let's deal with the contact links (Email and URL)
-			if ((($cur_post['email_setting'] == '0' && !$pun_user['is_guest']) || $pun_user['is_admmod']) && $pun_user['g_send_email'] == '1')
-				$user_contacts[] = '<span class="email"><a href="mailto:'.pun_htmlspecialchars($cur_post['email']).'">'.$lang_common['Email'].'</a></span>';
-			else if ($cur_post['email_setting'] == '1' && !$pun_user['is_guest'] && $pun_user['g_send_email'] == '1')
-				$user_contacts[] = '<span class="email"><a href="misc.php?email='.$cur_post['poster_id'].'">'.$lang_common['Email'].'</a></span>';
-
+                        // Now let's deal with the contact links (URL)
 			if ($cur_post['url'] != '')
 			{
 				if ($pun_config['o_censoring'] == '1')

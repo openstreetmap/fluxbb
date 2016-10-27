@@ -1093,12 +1093,9 @@ if ($pun_user['id'] != $id &&																	// If we aren't the user (i.e. edi
 		$user_personal[] = '<dd><span class="website"><a href="'.$user['url'].'" rel="nofollow">'.$user['url'].'</a></span></dd>';
 	}
 
-	if ($user['email_setting'] == '0' && !$pun_user['is_guest'] && $pun_user['g_send_email'] == '1')
-		$email_field = '<a href="mailto:'.pun_htmlspecialchars($user['email']).'">'.pun_htmlspecialchars($user['email']).'</a>';
-	else if ($user['email_setting'] == '1' && !$pun_user['is_guest'] && $pun_user['g_send_email'] == '1')
-		$email_field = '<a href="misc.php?email='.$id.'">'.$lang_common['Send email'].'</a>';
-	else
-		$email_field = '';
+        // link sendemail to osm.org sendmessage (modification because of special OSM login)
+        $email_field = '<a href="https://www.openstreetmap.org/message/new/' . $user['username'] . '" target="_blank">' . $lang_common['Send email'] . '</a>';
+        	
 	if ($email_field != '')
 	{
 		$user_personal[] = '<dt>'.$lang_common['Email'].'</dt>';
