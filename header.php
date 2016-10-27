@@ -254,6 +254,10 @@ else
 				$page_statusinfo[] = '<li class="reportlink"><span><strong><a href="admin_reports.php">'.$lang_common['New reports'].'</a></strong></span></li>';
 		}
 
+		$result_header = $db->query('SELECT 1 FROM '.$db->prefix.'posts WHERE approved=0') or error('Unable to fetch unapproved posts info', __FILE__, __LINE__, $db->error());
+		if ($db->result($result_header))
+			$page_statusinfo[] = '<li class="reportlink"><span><strong><a href="admin_posts.php">'.$lang_common['New unapproved posts'].'</a></strong></span></li>';
+
 		if ($pun_config['o_maintenance'] == '1')
 			$page_statusinfo[] = '<li class="maintenancelink"><span><strong><a href="admin_options.php#maintenance">'.$lang_common['Maintenance mode enabled'].'</a></strong></span></li>';
 	}

@@ -156,6 +156,7 @@ $lang_common = array(
 // Admin related stuff in the header
 'New reports'						=>	'There are new reports',
 'Maintenance mode enabled'			=>	'Maintenance mode is enabled!',
+'New unapproved posts'						=>	'There are new unapproved posts',
 
 // Units for file sizes
 'Size unit B'						=>	'%s B',
