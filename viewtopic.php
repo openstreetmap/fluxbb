@@ -23,6 +23,12 @@ if ($id < 1 && $pid < 1)
 // Load the viewtopic.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/topic.php';
 
+// Load language file for BBCODE buttons
+if (file_exists(PUN_ROOT.'lang/'.$pun_user['language'].'/easy_bbcode.php'))
+	require PUN_ROOT.'lang/'.$pun_user['language'].'/easy_bbcode.php';
+else
+	require PUN_ROOT.'lang/English/easy_bbcode.php';
+
 
 // If a post ID is specified we determine topic ID and page number so we can redirect to the correct message
 if ($pid)
@@ -349,6 +355,13 @@ while ($cur_post = $db->fetch_assoc($result))
 		$post_actions[] = '<li class="postquote"><span><a href="post.php?tid='.$id.'&amp;qid='.$cur_post['id'].'">'.$lang_topic['Quote'].'</a></span></li>';
 	}
 
+        // Modification for quickquote
+        if ($pun_config['o_quickpost'] == '1' &&
+		!$pun_user['is_guest'] &&
+		($cur_topic['post_replies'] == '1' || ($cur_topic['post_replies'] == '' && $pun_user['g_post_replies'] == '1')) &&
+		($cur_topic['closed'] == '0' || $is_admmod))
+		$post_actions[] = '<li class="postquickquote"><span><a onmousedown="get_quote_text();" onclick="Quote(\''.pun_htmlspecialchars($cur_post['username']).'\', \''.pun_htmlspecialchars($db->escape($cur_post['message'])).'\'); return false;" href="post.php?tid='.$id.'&amp;qid='.$cur_post['id'].'">'.$lang_easy_bbcode['Quick quote'].'</a></span></li>';
+        
 	// Perform the main parsing of the message (BBCode, smilies, censor words etc)
 	$cur_post['message'] = parse_message($cur_post['message'], $cur_post['hide_smilies']);
 
@@ -452,10 +465,20 @@ if ($pun_user['is_guest'])
 						<div class="clearer"></div>
 <?php
 
-	echo "\t\t\t\t\t\t".'<label class="required"><strong>'.$lang_common['Message'].' <span>'.$lang_common['Required'].'</span></strong><br />';
-}
-else
-	echo "\t\t\t\t\t\t".'<label>';
+    // quickquote modification
+
+        $bbcode_form = 'quickpostform';
+        $bbcode_field = 'req_message';
+        require PUN_ROOT.'mod_easy_bbcode.php';
+        echo "\t\t\t\t\t\t".'<label class="required"><strong>'.$lang_common['Message'].' <span>'.$lang_common['Required'].'</span></strong><br />';
+    }
+    else
+    {
+        $bbcode_form = 'quickpostform';
+        $bbcode_field = 'req_message';
+        require PUN_ROOT.'mod_easy_bbcode.php';
+        echo "\t\t\t\t\t\t".'<label>';
+    }
 
 ?>
 <textarea name="req_message" rows="7" cols="75" tabindex="<?php echo $cur_index++ ?>"></textarea></label>
