@@ -22,6 +22,7 @@ $lang_post = array(
 'Post redirect'			=>	'Message envoyé. Redirection&#160;…',
 'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
 'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
 'Post a reply'			=>	'Répondre',
 'Post new topic'		=>	'Nouvelle discussion',
 'Hide smilies'			=>	'Ne pas convertir les émoticônes dans ce message',

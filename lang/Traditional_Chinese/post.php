@@ -22,6 +22,7 @@ $lang_post = array(
 'Post redirect'		=>	'文章已發表。重新導向中 …',
 'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
 'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
 'Post a reply'		=>	'發表回覆',
 'Post new topic'	=>	'發表主題',
 'Hide smilies'		=>	'不在這篇文章中顯示表情圖',
