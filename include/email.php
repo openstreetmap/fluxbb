@@ -217,7 +217,7 @@ function pun_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name 
 {
 	global $pun_config, $lang_common;
 
-	// Give up if there is no target address
+	// Give up if there is no target address (modification because of special OSM login)
 	if ($to == '')
 		return;
 
