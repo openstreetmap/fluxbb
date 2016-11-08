@@ -23,6 +23,7 @@ $lang_post = array(
 'Guest name'					=>	'Jméno',	// For guests (instead of Username)
 'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
 'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
 'Post redirect'					=>	'Příspěvek odeslán. Přesměrovávání…',
 'Post a reply'					=>	'Odpovědět',
 'Post new topic'				=>	'Založit nové téma',

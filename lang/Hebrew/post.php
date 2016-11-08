@@ -22,6 +22,7 @@ $lang_post = array(
 'Post redirect'			=>	'ההודעה פורסמה. מעביר &hellip;',
 'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
 'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
 'Post a reply'			=>	'פרסם תגובה',
 'Post new topic'		=>	'פרסם נושא חדש',
 'Hide smilies'			=>	'אף פעם אל תציג סמיילים כתמונות בהודעה זו',

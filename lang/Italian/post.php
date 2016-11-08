@@ -22,6 +22,7 @@ $lang_post = array(
 'Guest name'		=>	'Nome', // Per gli ospini (al posto di "nome utente")
 'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
 'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
 'Post redirect'		=>	'Messaggio pubblicato. Reindirizzamento &hellip;',
 'Post a reply'		=>	'Rispondi',
 'Post new topic'	=>	'Nuova discussione',

@@ -22,6 +22,7 @@ $lang_post = array(
     'Post redirect' => 'Сообщение сохранено. Переадресация &hellip;',
     'Post moderation redirect'		=>	'Your post requires moderator approval before it will be displayed on the forum. Redirecting …',
     'Topic moderation redirect'		=>	'Your topic requires moderator approval before it will be displayed on the forum. Redirecting …',
+'Approval info'		=>	'Your post requires moderator approval before it will be displayed on the forum.',
     'Post a reply' => 'Напишите ответ',
     'Post new topic' => 'Новая тема',
     'Hide smilies' => 'Никогда не показывать смайлики в виде картинок в этом сообщении',

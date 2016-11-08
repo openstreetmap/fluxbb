@@ -768,7 +768,18 @@ if (!empty($checkboxes))
 ?>
 			</div>
 <?php flux_hook('post_before_submit') ?>
-			<p class="buttons"><input type="submit" name="submit" value="<?php echo $lang_common['Submit'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="s" /> <input type="submit" name="preview" value="<?php echo $lang_post['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" /> <a href="javascript:history.go(-1)"><?php echo $lang_common['Go back'] ?></a></p>
+
+<?php //post approval info
+
+    $topic_approve = (!$is_admmod && ($cur_posting['force_approve'] == '1' || $cur_posting['force_approve'] == '3' || $pun_user['g_moderate_posts'] == '1')) ? '0' : '1';
+    $post_approve = (!$is_admmod && ($cur_posting['force_approve'] == '2' || $cur_posting['force_approve'] == '3' || $pun_user['g_moderate_posts'] == '1')) ? '0' : '1';
+
+    if (($fid && $topic_approve == '0') || ($tid && $post_approve == '0'))
+        $approval_info = ' | <span style="color:crimson;">' . $lang_post['Approval info'] . '</span>';
+    else
+        $approval_info = '';
+?>
+			<p class="buttons"><input type="submit" name="submit" value="<?php echo $lang_common['Submit'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="s" /> <input type="submit" name="preview" value="<?php echo $lang_post['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" /> <a href="javascript:history.go(-1)"><?php echo $lang_common['Go back'] ?></a><?php echo $approval_info; ?></p>
 		</form>
 	</div>
 </div>
