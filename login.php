@@ -147,7 +147,17 @@ if (isset($_POST['form_sent']) && $action == 'in')
 			}
 			else
 				message('A problem was encountered: Could not lookup the Display name in the authentication response. Please try again');
-			
+
+			$id_pos = strpos($result, "id=");
+			if ($id_pos > 0) {
+				$id_pos += 4;
+				$id_end = strpos($result, '"', $id_pos);
+				$osm_id = substr($result, $id_pos, $id_end - $id_pos);
+			}
+			else {
+				$osm_id = 0;
+			}
+
 			// Does the user exist already?
 			$username_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'username=\''.$db->escape($username).'\'' : 'username=\''.$db->escape($username).'\'';
 			
@@ -162,8 +172,8 @@ if (isset($_POST['form_sent']) && $action == 'in')
 				$timezone = 0;
 				$language = $pun_config['o_default_lang'];
 				$now = time();
-				
-				$sql = 'INSERT INTO '.$db->prefix.'users (username, group_id, password, email, email_setting, timezone, language, style, registered, registration_ip, last_visit) VALUES(\''.$db->escape($username).'\', '.$intial_group_id.', \''.$form_password_hash.'\', \''.$email1.'\', '.$email_setting.', '.$timezone.' , \''.$db->escape($language).'\', \''.$pun_config['o_default_style'].'\', '.$now.', \''.get_remote_address().'\', '.$now.')';
+
+				$sql = 'INSERT INTO '.$db->prefix.'users (username, group_id, password, email, email_setting, timezone, language, style, registered, registration_ip, last_visit, osm_id) VALUES(\''.$db->escape($username).'\', '.$intial_group_id.', \''.$form_password_hash.'\', \''.$email1.'\', '.$email_setting.', '.$timezone.' , \''.$db->escape($language).'\', \''.$pun_config['o_default_style'].'\', '.$now.', \''.get_remote_address().'\', '.$now.', '.$osm_id.')';
 
 				$db->query($sql) or error('Unable to create user', __FILE__, __LINE__, $db->error());
 				$cur_user['id'] = $db->insert_id();
