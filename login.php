@@ -134,10 +134,16 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	$authURL=sprintf("http://%s:%s@www.openstreetmap.org/api/0.6/user/details",urlencode($form_username),urlencode($form_password));
 	$result = URLopen($authURL);
 
+        //if user and passwort is found on osm.org
 	if (strlen($result) > 0) {
+            
 		$sc_pos = strpos($result, "display_name=");
+                
 		if ($sc_pos > 0) {
+                    
+                        //find and extract display_name
 			if ($sc_pos > 0) {
+                            
 				$sc_pos += 14;
 				$sc_end = strpos($result, '"', $sc_pos);
 				$username =html_entity_decode(substr($result, $sc_pos, $sc_end - $sc_pos), ENT_COMPAT, "UTF-8");
@@ -148,6 +154,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 			else
 				message('A problem was encountered: Could not lookup the Display name in the authentication response. Please try again');
 
+                        //find and extract osm_id
 			$id_pos = strpos($result, "id=");
 			if ($id_pos > 0) {
 				$id_pos += 4;
@@ -155,16 +162,18 @@ if (isset($_POST['form_sent']) && $action == 'in')
 				$osm_id = substr($result, $id_pos, $id_end - $id_pos);
 			}
 			else {
-				$osm_id = 0;
+				message('A problem was encountered: Could not lookup the OSM ID in the authentication response. Please try again');
 			}
 
 			// Does the user exist already?
-			$username_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'username=\''.$db->escape($username).'\'' : 'username=\''.$db->escape($username).'\'';
+			$osmid_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'osm_id=\''.$db->escape($osm_id).'\'' : 'osm_id=\''.$db->escape($osm_id).'\'';
 			
-			$result = $db->query('SELECT * FROM '.$db->prefix.'users WHERE '.$username_sql) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+			$result = $db->query('SELECT * FROM '.$db->prefix.'users WHERE '.$osmid_sql) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 			$cur_user = $db->fetch_assoc($result);
 
+                        //if no account in osmfoum DB found
 			if (!$cur_user['id']) {
+                            
 				//Create the user
 				$intial_group_id = ($pun_config['o_regs_verify'] == '0') ? $pun_config['o_default_user_group'] : PUN_UNVERIFIED;
 				$email1 = "";
@@ -178,15 +187,29 @@ if (isset($_POST['form_sent']) && $action == 'in')
 				$db->query($sql) or error('Unable to create user', __FILE__, __LINE__, $db->error());
 				$cur_user['id'] = $db->insert_id();
 			}
+                        
+                        //account found in osmforum DB
 			else
 			{
 				// Login successful. Update the user.
-				if ($sha1_available)	// There's an MD5 hash in the database, but SHA1 hashing is available, so we update the DB
-					$db->query('UPDATE '.$db->prefix.'users SET password=\''.$form_password_hash.'\' WHERE id='.$cur_user['id']) or error('Unable to update user password', __FILE__, __LINE__, $db->error());
+				if ($sha1_available)	 {
+                                        
+                                    // There's an MD5 hash in the database, but SHA1 hashing is available, so we update the DB
+                                    $db->query('UPDATE '.$db->prefix.'users SET password=\''.$form_password_hash.'\' WHERE id='.$cur_user['id']) or error('Unable to update user password', __FILE__, __LINE__, $db->error());                                
+                                }
 			}
+                        
+                        //user changed his name on osm.org
+                        if ($username != $cur_user['username']) {
+                            
+                            //update the username in osmforum DB
+                            $sql = 'UPDATE '.$db->prefix.'users SET username = \''.$db->escape($username).'\' WHERE osm_id='.(int) $osm_id.''; 
+                            $db->query($sql) or error('Unable to update username, please contact the Administrators and tell us your old and new OSM Name', __FILE__, __LINE__, $db->error());
+                        }
 			
-			// Update email address
+			// Update email address from login email address
 			if(filter_var($form_username, FILTER_VALIDATE_EMAIL) && $cur_user['id'] > 0) {
+                            
 				// valid address
 				$db->query('UPDATE '.$db->prefix.'users SET email=\''.$db->escape($form_username).'\' WHERE id='.$cur_user['id']);
 			}
