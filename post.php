@@ -300,7 +300,7 @@ if (isset($_POST['form_sent']))
 			{
 				require_once PUN_ROOT.'include/email.php';
 				// Load the "new post" template
-				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$pun_user['language'].'/mail_templates/new_post.tpl'));
+				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/English/mail_templates/new_post.tpl'));
 		
 				// The first row contains the subject
 				$first_crlf = strpos($mail_tpl, "\n");
@@ -372,13 +372,13 @@ if (isset($_POST['form_sent']))
                                                     // Is the subscription email for $cur_subscriber['language'] cached or not?
                                                     if (!isset($notification_emails[$cur_subscriber['language']]))
                                                     {
-                                                            if (file_exists(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'))
+                                                            if (file_exists(PUN_ROOT.'lang/English/mail_templates/new_topic.tpl'))
                                                             {
                                                                     // Load the "new topic" template
-                                                                    $mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic.tpl'));
+                                                                    $mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/English/mail_templates/new_topic.tpl'));
 
                                                                     // Load the "new topic full" template (with post included)
-                                                                    $mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/'.$cur_subscriber['language'].'/mail_templates/new_topic_full.tpl'));
+                                                                    $mail_tpl_full = trim(file_get_contents(PUN_ROOT.'lang/English/mail_templates/new_topic_full.tpl'));
 
                                                                     // The first row contains the subject (it also starts with "Subject:")
                                                                     $first_crlf = strpos($mail_tpl, "\n");
@@ -433,7 +433,7 @@ if (isset($_POST['form_sent']))
 			{
 				require_once PUN_ROOT.'include/email.php';
 				// Load the "new post" template
-				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/'.$pun_user['language'].'/mail_templates/new_post_topic.tpl'));
+				$mail_tpl = trim(file_get_contents(PUN_ROOT.'lang/English/mail_templates/new_post_topic.tpl'));
 		
 				// The first row contains the subject
 				$first_crlf = strpos($mail_tpl, "\n");
