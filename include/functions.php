@@ -391,11 +391,6 @@ function check_bans()
 	if ($pun_user['is_admmod'] || !$pun_bans)
 		return;
 
-	// Add a dot or a colon (depending on IPv4/IPv6) at the end of the IP address to prevent banned address
-	// 192.168.0.5 from matching e.g. 192.168.0.50
-	$user_ip = get_remote_address();
-	$user_ip .= (strpos($user_ip, '.') !== false) ? '.' : ':';
-
 	$bans_altered = false;
 	$is_banned = false;
 
@@ -411,27 +406,9 @@ function check_bans()
 
 		if ($cur_ban['username'] != '' && utf8_strtolower($pun_user['username']) == utf8_strtolower($cur_ban['username']))
 			$is_banned = true;
-
-		if ($cur_ban['ip'] != '')
-		{
-			$cur_ban_ips = explode(' ', $cur_ban['ip']);
-
-			$num_ips = count($cur_ban_ips);
-			for ($i = 0; $i < $num_ips; ++$i)
-			{
-				// Add the proper ending to the ban
-				if (strpos($user_ip, '.') !== false)
-					$cur_ban_ips[$i] = $cur_ban_ips[$i].'.';
-				else
-					$cur_ban_ips[$i] = $cur_ban_ips[$i].':';
-
-				if (substr($user_ip, 0, strlen($cur_ban_ips[$i])) == $cur_ban_ips[$i])
-				{
-					$is_banned = true;
-					break;
-				}
-			}
-		}
+                
+                if ($cur_ban['osmid'] != '' && $pun_user['osm_id'] == $cur_ban['osmid'])
+			$is_banned = true;
 
 		if ($is_banned)
 		{

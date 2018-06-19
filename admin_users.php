@@ -573,7 +573,6 @@ else if (isset($_POST['ban_users']) || isset($_POST['ban_users_comply']))
 	{
 		$ban_message = pun_trim($_POST['ban_message']);
 		$ban_expire = pun_trim($_POST['ban_expire']);
-		$ban_the_ip = isset($_POST['ban_the_ip']) ? intval($_POST['ban_the_ip']) : 0;
 
 		if ($ban_expire != '' && $ban_expire != 'Never')
 		{
@@ -595,26 +594,17 @@ else if (isset($_POST['ban_users']) || isset($_POST['ban_users_comply']))
 
 		// Fetch user information
 		$user_info = array();
-		$result = $db->query('SELECT id, username, email, registration_ip FROM '.$db->prefix.'users WHERE id IN ('.implode(',', $user_ids).')') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT id, username, osm_id FROM '.$db->prefix.'users WHERE id IN ('.implode(',', $user_ids).')') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 		while ($cur_user = $db->fetch_assoc($result))
-			$user_info[$cur_user['id']] = array('username' => $cur_user['username'], 'email' => $cur_user['email'], 'ip' => $cur_user['registration_ip']);
-
-		// Overwrite the registration IP with one from the last post (if it exists)
-		if ($ban_the_ip != 0)
-		{
-			$result = $db->query('SELECT p.poster_id, p.poster_ip FROM '.$db->prefix.'posts AS p INNER JOIN (SELECT MAX(id) AS id FROM '.$db->prefix.'posts WHERE poster_id IN ('.implode(',', $user_ids).') GROUP BY poster_id) AS i ON p.id=i.id') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
-			while ($cur_address = $db->fetch_assoc($result))
-				$user_info[$cur_address['poster_id']]['ip'] = $cur_address['poster_ip'];
-		}
+			$user_info[$cur_user['id']] = array('username' => $cur_user['username'], 'osmid' => $cur_user['osm_id']);
 
 		// And insert the bans!
 		foreach ($user_ids as $user_id)
 		{
 			$ban_username = '\''.$db->escape($user_info[$user_id]['username']).'\'';
-			$ban_email = '\''.$db->escape($user_info[$user_id]['email']).'\'';
-			$ban_ip = ($ban_the_ip != 0) ? '\''.$db->escape($user_info[$user_id]['ip']).'\'' : 'NULL';
+			$ban_osmid = (int) $user_info[$user_id]['osmid'];
 
-			$db->query('INSERT INTO '.$db->prefix.'bans (username, ip, email, message, expire, ban_creator) VALUES('.$ban_username.', '.$ban_ip.', '.$ban_email.', '.$ban_message.', '.$ban_expire.', '.$pun_user['id'].')') or error('Unable to add ban', __FILE__, __LINE__, $db->error());
+			$db->query('INSERT INTO '.$db->prefix.'bans (username, osmid, message, expire, ban_creator) VALUES('.$ban_username.', '.$ban_osmid.', '.$ban_message.', '.$ban_expire.', '.$pun_user['id'].')') or error('Unable to add ban', __FILE__, __LINE__, $db->error());
 		}
 
 		// Regenerate the bans cache
@@ -656,14 +646,6 @@ else if (isset($_POST['ban_users']) || isset($_POST['ban_users_comply']))
 									<td>
 										<input type="text" name="ban_expire" size="17" maxlength="10" tabindex="2" />
 										<span><?php echo $lang_admin_users['Expire date help'] ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php echo $lang_admin_users['Ban IP label'] ?></th>
-									<td>
-										<label class="conl"><input type="radio" name="ban_the_ip" tabindex="3" value="1" checked="checked" />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong></label>
-										<label class="conl"><input type="radio" name="ban_the_ip" tabindex="4" value="0" checked="checked" />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong></label>
-										<span class="clearb"><?php echo $lang_admin_users['Ban IP help'] ?></span>
 									</td>
 								</tr>
 							</table>

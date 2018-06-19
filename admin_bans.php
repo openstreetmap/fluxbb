@@ -32,9 +32,9 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 			if ($user_id < 2)
 				message($lang_common['Bad request'], false, '404 Not Found');
 
-			$result = $db->query('SELECT group_id, username, email FROM '.$db->prefix.'users WHERE id='.$user_id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+			$result = $db->query('SELECT group_id, username, osm_id FROM '.$db->prefix.'users WHERE id='.$user_id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 			if ($db->num_rows($result))
-				list($group_id, $ban_user, $ban_email) = $db->fetch_row($result);
+				list($group_id, $ban_user, $ban_osmid) = $db->fetch_row($result);
 			else
 				message($lang_admin_bans['No user ID message']);
 		}
@@ -44,9 +44,9 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 
 			if ($ban_user != '')
 			{
-				$result = $db->query('SELECT id, group_id, username, email FROM '.$db->prefix.'users WHERE username=\''.$db->escape($ban_user).'\' AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+				$result = $db->query('SELECT id, group_id, username, osm_id FROM '.$db->prefix.'users WHERE username=\''.$db->escape($ban_user).'\' AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 				if ($db->num_rows($result))
-					list($user_id, $group_id, $ban_user, $ban_email) = $db->fetch_row($result);
+					list($user_id, $group_id, $ban_user, $ban_osmid) = $db->fetch_row($result);
 				else
 					message($lang_admin_bans['No user message']);
 			}
@@ -65,19 +65,6 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 				message(sprintf($lang_admin_bans['User is mod message'], pun_htmlspecialchars($ban_user)));
 		}
 
-		// If we have a $user_id, we can try to find the last known IP of that user
-		if (isset($user_id))
-		{
-			$result = $db->query('SELECT poster_ip FROM '.$db->prefix.'posts WHERE poster_id='.$user_id.' ORDER BY posted DESC LIMIT 1') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
-			$ban_ip = ($db->num_rows($result)) ? $db->result($result) : '';
-
-			if ($ban_ip == '')
-			{
-				$result = $db->query('SELECT registration_ip FROM '.$db->prefix.'users WHERE id='.$user_id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
-				$ban_ip = ($db->num_rows($result)) ? $db->result($result) : '';
-			}
-		}
-
 		$mode = 'add';
 	}
 	else // We are editing a ban
@@ -86,9 +73,9 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 		if ($ban_id < 1)
 			message($lang_common['Bad request'], false, '404 Not Found');
 
-		$result = $db->query('SELECT username, ip, email, message, expire FROM '.$db->prefix.'bans WHERE id='.$ban_id) or error('Unable to fetch ban info', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT username, osmid, message, expire FROM '.$db->prefix.'bans WHERE id='.$ban_id) or error('Unable to fetch ban info', __FILE__, __LINE__, $db->error());
 		if ($db->num_rows($result))
-			list($ban_user, $ban_ip, $ban_email, $ban_message, $ban_expire) = $db->fetch_row($result);
+			list($ban_user, $ban_osmid, $ban_message, $ban_expire) = $db->fetch_row($result);
 		else
 			message($lang_common['Bad request'], false, '404 Not Found');
 
@@ -124,22 +111,17 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 										<span><?php echo $lang_admin_bans['Username help'] ?></span>
 									</td>
 								</tr>
+                                                                
+                                                                
 								<tr>
-									<th scope="row"><?php echo $lang_admin_bans['IP label'] ?></th>
+									<th scope="row">OSM-ID</th>
 									<td>
-										<input type="text" name="ban_ip" size="45" maxlength="255" value="<?php if (isset($ban_ip)) echo pun_htmlspecialchars($ban_ip); ?>" tabindex="2" />
-										<span><?php echo $lang_admin_bans['IP help'] ?><?php if ($ban_user != '' && isset($user_id)) printf(' '.$lang_admin_bans['IP help link'], '<a href="admin_users.php?ip_stats='.$user_id.'">'.$lang_admin_common['here'].'</a>') ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php echo $lang_admin_bans['E-mail label'] ?></th>
-									<td>
-										<input type="text" name="ban_email" size="40" maxlength="80" value="<?php if (isset($ban_email)) echo pun_htmlspecialchars($ban_email); ?>" tabindex="3" />
-										<span><?php echo $lang_admin_bans['E-mail help'] ?></span>
+										<input type="text" name="ban_osmid" size="45" maxlength="255" value="<?php if (isset($ban_osmid)) echo pun_htmlspecialchars($ban_osmid); ?>" tabindex="2" />
+										<span>Because forum accounts are based on osm.org accounts and can only be registered there, it is best to ban users by their OSM-ID.</span>
 									</td>
 								</tr>
 							</table>
-							<p class="topspace"><strong class="warntext"><?php echo $lang_admin_bans['Ban IP range info'] ?></strong></p>
+							<p class="topspace"><strong class="warntext"><?php if ($ban_user != '' && isset($user_id)) printf(' '.$lang_admin_bans['IP help link'], '<a href="admin_users.php?ip_stats='.$user_id.'">'.$lang_admin_common['here'].'</a>') ?></strong></p>
 						</div>
 					</fieldset>
 				</div>
@@ -183,12 +165,11 @@ else if (isset($_POST['add_edit_ban']))
 	confirm_referrer('admin_bans.php');
 
 	$ban_user = pun_trim($_POST['ban_user']);
-	$ban_ip = pun_trim($_POST['ban_ip']);
-	$ban_email = strtolower(pun_trim($_POST['ban_email']));
+        $ban_osmid = pun_trim($_POST['ban_osmid']);
 	$ban_message = pun_trim($_POST['ban_message']);
 	$ban_expire = pun_trim($_POST['ban_expire']);
 
-	if ($ban_user == '' && $ban_ip == '' && $ban_email == '')
+	if ($ban_user == '' && $ban_osmid == '')
 		message($lang_admin_bans['Must enter message']);
 	else if (strtolower($ban_user) == 'guest')
 		message($lang_admin_bans['Cannot ban guest message']);
@@ -212,57 +193,6 @@ else if (isset($_POST['add_edit_ban']))
 		}
 	}
 
-	// Validate IP/IP range (it's overkill, I know)
-	if ($ban_ip != '')
-	{
-		$ban_ip = preg_replace('%\s{2,}%S', ' ', $ban_ip);
-		$addresses = explode(' ', $ban_ip);
-		$addresses = array_map('pun_trim', $addresses);
-
-		for ($i = 0; $i < count($addresses); ++$i)
-		{
-			if (strpos($addresses[$i], ':') !== false)
-			{
-				$octets = explode(':', $addresses[$i]);
-
-				for ($c = 0; $c < count($octets); ++$c)
-				{
-					$octets[$c] = ltrim($octets[$c], "0");
-
-					if ($c > 7 || (!empty($octets[$c]) && !ctype_xdigit($octets[$c])) || intval($octets[$c], 16) > 65535)
-						message($lang_admin_bans['Invalid IP message']);
-				}
-
-				$cur_address = implode(':', $octets);
-				$addresses[$i] = $cur_address;
-			}
-			else
-			{
-				$octets = explode('.', $addresses[$i]);
-
-				for ($c = 0; $c < count($octets); ++$c)
-				{
-					$octets[$c] = (strlen($octets[$c]) > 1) ? ltrim($octets[$c], "0") : $octets[$c];
-
-					if ($c > 3 || preg_match('%[^0-9]%', $octets[$c]) || intval($octets[$c]) > 255)
-						message($lang_admin_bans['Invalid IP message']);
-				}
-
-				$cur_address = implode('.', $octets);
-				$addresses[$i] = $cur_address;
-			}
-		}
-
-		$ban_ip = implode(' ', $addresses);
-	}
-
-	require PUN_ROOT.'include/email.php';
-	if ($ban_email != '' && !is_valid_email($ban_email))
-	{
-		if (!preg_match('%^[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,63})$%', $ban_email))
-			message($lang_admin_bans['Invalid e-mail message']);
-	}
-
 	if ($ban_expire != '' && $ban_expire != 'Never')
 	{
 		$ban_expire = strtotime($ban_expire.' GMT');
@@ -280,14 +210,13 @@ else if (isset($_POST['add_edit_ban']))
 		$ban_expire = 'NULL';
 
 	$ban_user = ($ban_user != '') ? '\''.$db->escape($ban_user).'\'' : 'NULL';
-	$ban_ip = ($ban_ip != '') ? '\''.$db->escape($ban_ip).'\'' : 'NULL';
-	$ban_email = ($ban_email != '') ? '\''.$db->escape($ban_email).'\'' : 'NULL';
+	$ban_osmid = ($ban_osmid != '') ? (int) $ban_osmid : 'NULL';
 	$ban_message = ($ban_message != '') ? '\''.$db->escape($ban_message).'\'' : 'NULL';
 
 	if ($_POST['mode'] == 'add')
-		$db->query('INSERT INTO '.$db->prefix.'bans (username, ip, email, message, expire, ban_creator) VALUES('.$ban_user.', '.$ban_ip.', '.$ban_email.', '.$ban_message.', '.$ban_expire.', '.$pun_user['id'].')') or error('Unable to add ban', __FILE__, __LINE__, $db->error());
+		$db->query('INSERT INTO '.$db->prefix.'bans (username, osmid, message, expire, ban_creator) VALUES('.$ban_user.', '.$ban_osmid.', '.$ban_message.', '.$ban_expire.', '.$pun_user['id'].')') or error('Unable to add ban', __FILE__, __LINE__, $db->error());
 	else
-		$db->query('UPDATE '.$db->prefix.'bans SET username='.$ban_user.', ip='.$ban_ip.', email='.$ban_email.', message='.$ban_message.', expire='.$ban_expire.' WHERE id='.intval($_POST['ban_id'])) or error('Unable to update ban', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'bans SET username='.$ban_user.', osmid='.$ban_osmid.', message='.$ban_message.', expire='.$ban_expire.' WHERE id='.intval($_POST['ban_id'])) or error('Unable to update ban', __FILE__, __LINE__, $db->error());
 
 	// Regenerate the bans cache
 	if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
@@ -332,7 +261,7 @@ else if (isset($_GET['find_ban']))
 
 	$expire_after = isset($_GET['expire_after']) ? pun_trim($_GET['expire_after']) : '';
 	$expire_before = isset($_GET['expire_before']) ? pun_trim($_GET['expire_before']) : '';
-	$order_by = isset($_GET['order_by']) && in_array($_GET['order_by'], array('username', 'ip', 'email', 'expire')) ? 'b.'.$_GET['order_by'] : 'b.username';
+	$order_by = isset($_GET['order_by']) && in_array($_GET['order_by'], array('username', 'expire', 'osmid')) ? 'b.'.$_GET['order_by'] : 'b.username';
 	$direction = isset($_GET['direction']) && $_GET['direction'] == 'DESC' ? 'DESC' : 'ASC';
 
 	$query_str[] = 'order_by='.$order_by;
@@ -363,7 +292,7 @@ else if (isset($_GET['find_ban']))
 	$like_command = ($db_type == 'pgsql') ? 'ILIKE' : 'LIKE';
 	foreach ($form as $key => $input)
 	{
-		if ($input != '' && in_array($key, array('username', 'ip', 'email', 'message')))
+		if ($input != '' && in_array($key, array('username', 'osmid', 'message')))
 		{
 			$conditions[] = 'b.'.$db->escape($key).' '.$like_command.' \''.$db->escape(str_replace('*', '%', $input)).'\'';
 			$query_str[] = 'form%5B'.$key.'%5D='.urlencode($input);
@@ -411,18 +340,17 @@ else if (isset($_GET['find_ban']))
 			<thead>
 				<tr>
 					<th class="tcl" scope="col"><?php echo $lang_admin_bans['Results username head'] ?></th>
-					<th class="tc2" scope="col"><?php echo $lang_admin_bans['Results e-mail head'] ?></th>
-					<th class="tc3" scope="col"><?php echo $lang_admin_bans['Results IP address head'] ?></th>
-					<th class="tc4" scope="col"><?php echo $lang_admin_bans['Results expire head'] ?></th>
-					<th class="tc5" scope="col"><?php echo $lang_admin_bans['Results message head'] ?></th>
-					<th class="tc6" scope="col"><?php echo $lang_admin_bans['Results banned by head'] ?></th>
+					<th class="tc2" scope="col">OSM-ID</th>
+					<th class="tc3" scope="col"><?php echo $lang_admin_bans['Results expire head'] ?></th>
+					<th class="tc4" scope="col"><?php echo $lang_admin_bans['Results message head'] ?></th>
+					<th class="tc5" scope="col"><?php echo $lang_admin_bans['Results banned by head'] ?></th>
 					<th class="tcr" scope="col"><?php echo $lang_admin_bans['Results actions head'] ?></th>
 				</tr>
 			</thead>
 			<tbody>
 <?php
 
-	$result = $db->query('SELECT b.id, b.username, b.ip, b.email, b.message, b.expire, b.ban_creator, u.username AS ban_creator_username FROM '.$db->prefix.'bans AS b LEFT JOIN '.$db->prefix.'users AS u ON b.ban_creator=u.id WHERE b.id>0'.(!empty($conditions) ? ' AND '.implode(' AND ', $conditions) : '').' ORDER BY '.$db->escape($order_by).' '.$db->escape($direction).' LIMIT '.$start_from.', 50') or error('Unable to fetch ban list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT b.id, b.username, b.osmid, b.message, b.expire, b.ban_creator, u.username AS ban_creator_username FROM '.$db->prefix.'bans AS b LEFT JOIN '.$db->prefix.'users AS u ON b.ban_creator=u.id WHERE b.id>0'.(!empty($conditions) ? ' AND '.implode(' AND ', $conditions) : '').' ORDER BY '.$db->escape($order_by).' '.$db->escape($direction).' LIMIT '.$start_from.', 50') or error('Unable to fetch ban list', __FILE__, __LINE__, $db->error());
 	if ($db->num_rows($result))
 	{
 		while ($ban_data = $db->fetch_assoc($result))
@@ -434,11 +362,10 @@ else if (isset($_GET['find_ban']))
 ?>
 				<tr>
 					<td class="tcl"><?php echo ($ban_data['username'] != '') ? pun_htmlspecialchars($ban_data['username']) : '&#160;' ?></td>
-					<td class="tc2"><?php echo ($ban_data['email'] != '') ? pun_htmlspecialchars($ban_data['email']) : '&#160;' ?></td>
-					<td class="tc3"><?php echo ($ban_data['ip'] != '') ? pun_htmlspecialchars($ban_data['ip']) : '&#160;' ?></td>
-					<td class="tc4"><?php echo $expire ?></td>
-					<td class="tc5"><?php echo ($ban_data['message'] != '') ? pun_htmlspecialchars($ban_data['message']) : '&#160;' ?></td>
-					<td class="tc6"><?php echo ($ban_data['ban_creator_username'] != '') ? '<a href="profile.php?id='.$ban_data['ban_creator'].'">'.pun_htmlspecialchars($ban_data['ban_creator_username']).'</a>' : $lang_admin_bans['Unknown'] ?></td>
+					<td class="tc2"><?php echo ($ban_data['osmid'] != '') ? '<a href="https://www.openstreetmap.org/api/0.6/user/'.$ban_data['osmid'].'" target="_blank">'.$ban_data['osmid'].'</a>' : '&#160;' ?></td>
+					<td class="tc3"><?php echo $expire ?></td>
+					<td class="tc4"><?php echo ($ban_data['message'] != '') ? pun_htmlspecialchars($ban_data['message']) : '&#160;' ?></td>
+					<td class="tc5"><?php echo ($ban_data['ban_creator_username'] != '') ? '<a href="profile.php?id='.$ban_data['ban_creator'].'">'.pun_htmlspecialchars($ban_data['ban_creator_username']).'</a>' : $lang_admin_bans['Unknown'] ?></td>
 					<td class="tcr"><?php echo $actions ?></td>
 				</tr>
 <?php
@@ -519,12 +446,8 @@ generate_admin_menu('bans');
 									<td><input type="text" name="form[username]" size="25" maxlength="25" tabindex="4" /></td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo $lang_admin_bans['IP label'] ?></th>
-									<td><input type="text" name="form[ip]" size="30" maxlength="255" tabindex="5" /></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php echo $lang_admin_bans['E-mail label'] ?></th>
-									<td><input type="text" name="form[email]" size="30" maxlength="80" tabindex="6" /></td>
+									<th scope="row"><?php echo $lang_admin_bans['OSMID label'] ?></th>
+									<td><input type="text" name="form[osmid]" size="30" maxlength="80" tabindex="6" /></td>
 								</tr>
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['Message label'] ?></th>
@@ -545,8 +468,7 @@ generate_admin_menu('bans');
 									<td>
 										<select name="order_by" tabindex="10">
 											<option value="username" selected="selected"><?php echo $lang_admin_bans['Order by username'] ?></option>
-											<option value="ip"><?php echo $lang_admin_bans['Order by ip'] ?></option>
-											<option value="email"><?php echo $lang_admin_bans['Order by e-mail'] ?></option>
+											<option value="osmid"><?php echo $lang_admin_bans['Order by osmid'] ?></option>
 											<option value="expire"><?php echo $lang_admin_bans['Order by expire'] ?></option>
 										</select>&#160;&#160;&#160;<select name="direction" tabindex="11">
 											<option value="ASC" selected="selected"><?php echo $lang_admin_bans['Ascending'] ?></option>
